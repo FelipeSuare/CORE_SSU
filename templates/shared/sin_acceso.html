@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin Acceso — Sistema SSU</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #F9c9c9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 56px 48px;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 12px 40px rgba(39, 20, 71, 0.15);
+        }
+
+        .icon-wrap {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #271447, #720035);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 28px;
+        }
+
+        .icon-wrap i {
+            font-size: 2.8em;
+            color: #ffffff;
+        }
+
+        .code {
+            font-size: 4em;
+            font-weight: 800;
+            color: #271447;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .title {
+            font-size: 1.25em;
+            font-weight: 700;
+            color: #720035;
+            margin-bottom: 14px;
+        }
+
+        .message {
+            font-size: .92em;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 36px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(90deg, #271447, #720035);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 13px 28px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: .9em;
+            transition: opacity .2s, transform .2s;
+        }
+
+        .btn-back:hover {
+            opacity: .88;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon-wrap">
+            <i class="material-symbols-outlined">lock</i>
+        </div>
+        <div class="code">403</div>
+        <div class="title">Acceso Restringido</div>
+        <p class="message">
+            No tienes los permisos necesarios para acceder a este módulo.<br>
+            Si crees que esto es un error, contacta al administrador del sistema.
+        </p>
+        <a href="/Index_Principal.html" class="btn-back">
+            <i class="material-symbols-outlined">arrow_back</i>
+            Volver al inicio
+        </a>
+    </div>
+</body>
+</html>

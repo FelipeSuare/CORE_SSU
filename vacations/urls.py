@@ -11,4 +11,7 @@ urlpatterns = [
     # Aprobación y/o Rechazo
     path('api/vacaciones/para-aprobar/',     views.solicitudes_para_aprobar, name='vac_para_aprobar'),
     path('api/vacaciones/decision/',         views.registrar_decision,       name='vac_decision'),
+    # Historial RRHH
+    path('api/vacaciones/historial-rrhh/',                           views.api_historial_rrhh,  name='vac_historial_rrhh'),
+    path('api/vacaciones/historial-rrhh/pdf/<int:id_formulario>/',   views.api_descargar_pdf,   name='vac_pdf'),
 ]

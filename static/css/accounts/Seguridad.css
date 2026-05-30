@@ -35,6 +35,9 @@ body {
 }
 
 .back-to-menu {
+    position: fixed;
+    top: 20px;
+    right: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -49,6 +52,8 @@ body {
     box-shadow: 0 4px 6px var(--shadow-heavy); 
     font-weight: bold;
     transition: transform 0.3s, box-shadow 0.3s;
+    margin-right: 20px;
+    margin-top: 5px;
 }
 
 .back-to-menu:hover {

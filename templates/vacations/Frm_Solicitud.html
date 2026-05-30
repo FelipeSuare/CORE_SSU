@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -14,8 +14,6 @@
 </head>
 <body>
 
-
-
     <div class="main-container">
         <div class="header-wrapper">
             <header class="module-header">
@@ -27,10 +25,9 @@
             </header>
             <div class="header-actions">
                 <a href="/Index_Principal.html" class="back-to-menu">
-                    <spam><i class="material-symbols-outlined">arrow_back</i></spam>
+                    <i class="material-symbols-outlined">arrow_back</i>
                     Volver
                 </a>
-
                 <div class="profile-switcher-container">
                     <button class="btn-profile-trigger" id="btnProfile">
                         <i class="material-symbols-outlined">account_circle</i>
@@ -45,9 +42,7 @@
                                 <span class="profile-role" id="currentRolePanel">—</span>
                             </div>
                         </div>
-                        <ul class="role-list" id="roleList">
-                            <!-- Roles cargados dinámicamente -->
-                        </ul>
+                        <ul class="role-list" id="roleList"></ul>
                     </div>
                 </div>
             </div>
@@ -58,31 +53,24 @@
                 <label for="unidadOrg">Unidad Organizacional</label>
                 <div class="select-wrapper">
                     <select id="unidadOrg">
-                        <option value="todos">Todos</option>
-                        <option value="administrativa">Administrativa</option>
-                        <option value="salud">Salud</option>
+                        <option value="">Todos</option>
                     </select>
                 </div>
             </div>
-
             <div class="filter-group">
                 <label for="tipoContrato">Tipo de Contrato</label>
                 <div class="select-wrapper">
                     <select id="tipoContrato">
-                        <option value="todos">Todos</option>
-                        <option value="item">Item</option>
-                        <option value="indefinido">Indefinido</option>
+                        <option value="">Todos</option>
                     </select>
                 </div>
             </div>
-
             <div class="filter-group">
                 <label for="funcionarioFilter">Funcionario</label>
                 <div class="input-wrapper">
                     <input type="text" id="funcionarioFilter" placeholder="Buscar Funcionario...">
                 </div>
             </div>
-
             <div class="filter-actions">
                 <button class="btn btn-primary btn-search" id="btnFilter">
                     <i class="material-symbols-outlined">search</i> Filtrar
@@ -92,14 +80,14 @@
                 </button>
             </div>
         </div>
-        
+
         <div class="table-card">
             <h2 class="card-title">Solicitudes Registradas</h2>
-            
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
+                            <th>Funcionario</th>
                             <th>Cargo</th>
                             <th>Fecha Solicitud</th>
                             <th>Fecha Inicio</th>
@@ -110,18 +98,35 @@
                         </tr>
                     </thead>
                     <tbody id="vacationTableBody">
-                        </tbody>
+                        <tr>
+                            <td colspan="8" style="text-align:center;padding:30px;color:#999">
+                                Cargando solicitudes...
+                            </td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
 
+    <!-- Modal confirmación PDF -->
+    <div class="modal-overlay" id="modalPDF">
+        <div class="form-modal">
+            <h2 class="modal-title">
+                <i class="material-symbols-outlined">picture_as_pdf</i> Descargar Formulario
+            </h2>
+            <p id="modalPDFMensaje" style="margin-bottom:24px;color:#444;line-height:1.6"></p>
+            <div class="form-actions">
+                <button class="btn btn-secondary" id="btnCancelarPDF">Cancelar</button>
+                <button class="btn btn-primary" id="btnConfirmarPDF">
+                    <i class="material-symbols-outlined">download</i> Descargar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="{% static 'js/shared/profile-switcher.js' %}"></script>
-    <script src="{% static 'js/vacations/Frm_Solicitud.js' %}"></script>
-    <script src="{% static 'js/shared/notifications.js' %}"></script>
+    <script src="{% static 'js/vacations/Frm_Solicitud.js' %}?v=4"></script>
+    <script src="{% static 'js/shared/notifications.js' %}?v=4"></script>
 </body>
 </html>
-
-
-
-

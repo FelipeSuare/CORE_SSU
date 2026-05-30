@@ -1,14 +1,16 @@
 import json
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import JsonResponse
+from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
-from core.models import Feriado
+from core.models import Feriado, UnidadOrganizacional
 from employees.models import Funcionario, HistorialCargo
 from accounts.models import FuncionarioRol
 from vacations.models import (
@@ -831,3 +833,435 @@ def registrar_decision(request):
         'nuevo_estado': _estado_display(solicitud.estado),
         'codigo': f"G{solicitud.id_formulario:03d}",
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MÓDULO: HISTORIAL DE SOLICITUDES DE VACACIÓN (RRHH)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_ROLES_HISTORIAL = {'RRHH', 'Administrador'}
+
+_PDF_FIRMAS = {
+    'SUBORDINADO': [
+        ('Firma Jefe de Área', 1),
+        ('Firma de Gerente de\nSalud o Administrativo', 2),
+        ('Firma de Gerente General', 3),
+    ],
+    'JEFE_AREA': [
+        ('Firma de Gerente de\nSalud o Administrativo', 1),
+        ('Firma de Gerente General', 2),
+    ],
+    'GERENTE_ADMINISTRATIVO': [('Firma de Gerente General', 1)],
+    'GERENTE_SALUD':          [('Firma de Gerente General', 1)],
+    'DEPENDENCIA_DIRECTA':    [('Firma de Gerente General', 1)],
+    'GERENTE_GENERAL':        [],
+}
+
+
+def _check_acceso_historial(request):
+    ci = request.user.username
+    try:
+        f = Funcionario.objects.get(ci__ci=ci, estado='ACTIVO')
+    except Funcionario.DoesNotExist:
+        return False, None
+    roles = set(FuncionarioRol.objects.filter(
+        cod_funcionario=f, activo=True
+    ).values_list('id_roles__tipo_rol', flat=True))
+    return bool(roles & _ROLES_HISTORIAL), f
+
+
+# ──────────────────────────────────────────────────────────────
+#  Página HTML
+# ──────────────────────────────────────────────────────────────
+
+@login_required(login_url='login_home')
+def historial_rrhh_view(request):
+    tiene_acceso, _ = _check_acceso_historial(request)
+    if not tiene_acceso:
+        return render(request, 'shared/sin_acceso.html', status=403)
+    return render(request, 'vacations/Frm_Solicitud.html')
+
+
+# ──────────────────────────────────────────────────────────────
+#  API: listado de solicitudes aprobadas (GET)
+# ──────────────────────────────────────────────────────────────
+
+@login_required(login_url='login_home')
+def api_historial_rrhh(request):
+    tiene_acceso, f_user = _check_acceso_historial(request)
+    if not tiene_acceso:
+        return JsonResponse({'error': 'Sin acceso.'}, status=403)
+
+    unidad_id = request.GET.get('unidad', '').strip()
+    tipo_cont = request.GET.get('tipo_contrato', '').strip()
+    nombre_b  = request.GET.get('funcionario', '').strip()
+
+    qs = SolicitudVacacion.objects.filter(estado='APROBADA').select_related(
+        'cod_funcionario__ci', 'cod_funcionario__id_unidad'
+    ).order_by('-fecha_solicitud')
+
+    if unidad_id:
+        qs = qs.filter(cod_funcionario__id_unidad=unidad_id)
+
+    if tipo_cont:
+        cods = HistorialCargo.objects.filter(
+            es_actual=True, tipo_contrato=tipo_cont
+        ).values_list('cod_funcionario', flat=True)
+        qs = qs.filter(cod_funcionario__in=cods)
+
+    if nombre_b:
+        qs = qs.filter(
+            Q(cod_funcionario__ci__nombre__icontains=nombre_b) |
+            Q(cod_funcionario__ci__ap_paterno__icontains=nombre_b)
+        )
+
+    sol_list = list(qs)
+    cod_funcs = list({s.cod_funcionario_id for s in sol_list})
+
+    cargos = {
+        h.cod_funcionario_id: h
+        for h in HistorialCargo.objects.filter(cod_funcionario__in=cod_funcs, es_actual=True)
+    }
+    gestiones = {
+        gv.cod_funcionario_id: gv
+        for gv in GestionVacacion.objects.filter(cod_funcionario__in=cod_funcs)
+    }
+
+    unidades = list(
+        UnidadOrganizacional.objects.filter(activo=True)
+        .values('id_unidad', 'nombre').order_by('nombre')
+    )
+    tipos_contrato = list(
+        HistorialCargo.objects.filter(es_actual=True)
+        .values_list('tipo_contrato', flat=True)
+        .distinct().order_by('tipo_contrato')
+    )
+
+    resultado = []
+    for sol in sol_list:
+        f = sol.cod_funcionario
+        p = f.ci
+        cargo_act = cargos.get(f.cod_funcionario)
+        gv = gestiones.get(f.cod_funcionario)
+        resultado.append({
+            'id': sol.id_formulario,
+            'codigo': f"G{sol.id_formulario:03d}",
+            'funcionario': f"{p.nombre} {p.ap_paterno} {p.ap_materno or ''}".strip(),
+            'cargo': cargo_act.cargo if cargo_act else '—',
+            'tipo_contrato': cargo_act.tipo_contrato if cargo_act else '—',
+            'unidad': f.id_unidad.nombre if f.id_unidad else '—',
+            'fecha_solicitud': sol.fecha_solicitud.strftime('%Y-%m-%d'),
+            'fecha_salida': sol.fecha_salida.strftime('%Y-%m-%d'),
+            'fecha_retorno': sol.fecha_retorno.strftime('%Y-%m-%d'),
+            'dias': float(sol.dias_solicitados),
+            'dias_adeudados': float(gv.dias_adeudados or 0) if gv else 0.0,
+        })
+
+    roles_activos = list(FuncionarioRol.objects.filter(
+        cod_funcionario=f_user, activo=True
+    ).values_list('id_roles__tipo_rol', flat=True))
+    if 'Funcionario' not in roles_activos:
+        roles_activos.insert(0, 'Funcionario')
+
+    return JsonResponse({
+        'solicitudes': resultado,
+        'filtros': {
+            'unidades': unidades,
+            'tipos_contrato': tipos_contrato,
+        },
+        'usuario': {
+            'nombre': f"{f_user.ci.nombre} {f_user.ci.ap_paterno}".strip(),
+            'roles': roles_activos,
+        },
+    })
+
+
+# ──────────────────────────────────────────────────────────────
+#  API: descarga de PDF (GET)
+# ──────────────────────────────────────────────────────────────
+
+@login_required(login_url='login_home')
+def api_descargar_pdf(request, id_formulario):
+    tiene_acceso, _ = _check_acceso_historial(request)
+    if not tiene_acceso:
+        return JsonResponse({'error': 'Sin acceso.'}, status=403)
+
+    try:
+        solicitud = SolicitudVacacion.objects.select_related(
+            'cod_funcionario__ci', 'cod_funcionario__id_unidad'
+        ).get(id_formulario=id_formulario, estado='APROBADA')
+    except SolicitudVacacion.DoesNotExist:
+        return JsonResponse({'error': 'Solicitud aprobada no encontrada.'}, status=404)
+
+    pdf_bytes = _generar_pdf_solicitud(solicitud)
+    cod = f"G{solicitud.id_formulario:03d}"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Vacacion_{cod}.pdf"'
+    return response
+
+
+# ──────────────────────────────────────────────────────────────
+#  Helper: generación del formulario PDF
+# ──────────────────────────────────────────────────────────────
+
+def _generar_pdf_solicitud(solicitud):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm,
+    )
+    W = A4[0] - 4*cm
+
+    f    = solicitud.cod_funcionario
+    p    = f.ci
+    tipo = f.tipo_funcionario
+    fs   = solicitud.fecha_solicitud
+
+    cargo_act = HistorialCargo.objects.filter(cod_funcionario=f, es_actual=True).first()
+    try:
+        gv = GestionVacacion.objects.get(cod_funcionario=f)
+    except GestionVacacion.DoesNotExist:
+        gv = None
+
+    # Aprobadores históricos (vigentes en la fecha de la solicitud)
+    aprobadores = {}
+    for n in range(1, 4):
+        ja = JerarquiaAprobacion.objects.filter(
+            cod_funcionario=f, nivel_aprobacion=n,
+            fecha_inicio__lte=fs,
+        ).filter(
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fs)
+        ).first()
+        if ja:
+            aprobadores[n] = ja.cod_aprobador.cod_funcionario
+
+    # Encargado RRHH histórico
+    rrhh_fr = FuncionarioRol.objects.filter(
+        id_roles__tipo_rol='RRHH',
+        fecha_asignacion__lte=fs,
+    ).filter(
+        Q(fecha_revocacion__isnull=True) | Q(fecha_revocacion__gte=fs)
+    ).first()
+    cod_rrhh = rrhh_fr.cod_funcionario.cod_funcionario if rrhh_fr else '—'
+
+    # ── Estilos ──────────────────────────────────────────────
+    PURPLE = colors.HexColor('#271447')
+    WINE   = colors.HexColor('#720035')
+    GRAY   = colors.HexColor('#cccccc')
+    BLACK  = colors.black
+    WHITE  = colors.white
+
+    def _s(fname, fsize, align=TA_LEFT, leading=None, color=None):
+        return ParagraphStyle(
+            f'{fname}{fsize}{color}',
+            fontName=fname,
+            fontSize=fsize,
+            alignment=align,
+            leading=leading or (fsize + 2),
+            textColor=color or BLACK,
+        )
+
+    sTitle   = _s('Helvetica-Bold', 12, TA_CENTER)
+    sSection = _s('Helvetica-Bold',  9, TA_CENTER, color=WHITE)
+    sLabel   = _s('Helvetica-Bold',  8)
+    sVal     = _s('Helvetica',       8)
+    sCenter  = _s('Helvetica',       8, TA_CENTER)
+    sBCenter = _s('Helvetica-Bold',  8, TA_CENTER)
+    sSmall   = _s('Helvetica',       7)
+    sSmallB  = _s('Helvetica-Bold',  7)
+
+    def lbl(t):  return Paragraph(t, sLabel)
+    def val(t):  return Paragraph(str(t), sVal)
+    def ctr(t):  return Paragraph(str(t), sCenter)
+    def bctr(t): return Paragraph(f'<b>{t}</b>', sBCenter)
+
+    HEADER_STYLE = TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), PURPLE),
+        ('TEXTCOLOR',     (0, 0), (-1, -1), WHITE),
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ])
+
+    def section_hdr(text):
+        t = Table([[Paragraph(text, sSection)]], colWidths=[W])
+        t.setStyle(HEADER_STYLE)
+        return t
+
+    def data_table(rows, col_widths):
+        t = Table(rows, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+            ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        return t
+
+    elements = []
+
+    # ── Título ───────────────────────────────────────────────
+    elements.append(Paragraph("FORMULARIO DE SOLICITUD VACACIÓN", sTitle))
+    elements.append(Spacer(1, 0.15*cm))
+
+    # ── Cod. Solicitud ───────────────────────────────────────
+    cod_sol = f"G{solicitud.id_formulario:03d}"
+    t_cod = Table([[lbl(f"Cod. Solicitud / {cod_sol}")]], colWidths=[W])
+    t_cod.setStyle(TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(t_cod)
+    elements.append(Spacer(1, 0.1*cm))
+
+    # ── Datos del empleado ───────────────────────────────────
+    nombre_completo = f"{p.nombre} {p.ap_paterno} {p.ap_materno or ''}".strip()
+    w1, w2 = W * 0.28, W * 0.72
+    elements.append(section_hdr("DATOS DEL EMPLEADO"))
+    elements.append(data_table([
+        [lbl('Carnet:'),                val(p.ci)],
+        [lbl('Nombre Completo:'),       val(nombre_completo)],
+        [lbl('Unidad Organizacional:'), val(f.id_unidad.nombre if f.id_unidad else '—')],
+        [lbl('Cargo:'),                 val(cargo_act.cargo if cargo_act else '—')],
+        [lbl('Fecha Nominal:'),         val(f.fecha_ingreso.strftime('%d/%m/%Y') if f.fecha_ingreso else '—')],
+    ], [w1, w2]))
+    elements.append(Spacer(1, 0.1*cm))
+
+    # ── Periodo de vacaciones ────────────────────────────────
+    w4 = W / 4
+    elements.append(section_hdr("PERIODO DE VACACIONES"))
+    elements.append(data_table([
+        [lbl('Fecha Solicitud:'), val(fs.strftime('%d/%m/%Y')),
+         lbl('Días Solicitados:'), val(str(float(solicitud.dias_solicitados)))],
+        [lbl('Fecha Inicio:'), val(solicitud.fecha_salida.strftime('%d/%m/%Y')),
+         lbl('Fecha Final:'), val(solicitud.fecha_retorno.strftime('%d/%m/%Y'))],
+    ], [w4, w4, w4, w4]))
+    # Descripción fila separada
+    elements.append(data_table(
+        [[lbl('Descripción:'), val(solicitud.motivo_vacacion or '—')]],
+        [w1, w2]
+    ))
+    elements.append(Spacer(1, 0.1*cm))
+
+    # ── Días pendientes ──────────────────────────────────────
+    elements.append(section_hdr("DÍAS PENDIENTES DE VACACIONES DESPUÉS DE LA SOLICITUD"))
+
+    def gest(i):
+        if gv:
+            anio = getattr(gv, f'anio_gestion{i}')
+            dias = float(getattr(gv, f'dias_gestion{i}'))
+            return (f"Gestión {anio}:" if anio else f"Gestión {i}:"), f"{dias:.1f}"
+        return f"Gestión {i}:", "0.0"
+
+    g1l, g1v = gest(1)
+    g2l, g2v = gest(2)
+    g3l, g3v = gest(3)
+    g4l, g4v = gest(4)
+    saldo_val = f"{float(gv.dias_adeudados or 0):.1f}" if gv else "0.0"
+
+    wa, wb, wc = W*0.22, W*0.22, W*0.06
+    dias_rows = [
+        [lbl(g1l), lbl('Días disponibles:'), val(g1v), lbl(g2l), lbl('Días Disponibles:'), val(g2v)],
+        [lbl(g3l), lbl('Días disponibles:'), val(g3v), lbl(g4l), lbl('Días Disponibles:'), val(g4v)],
+        [val(''), val(''), val(''), lbl(''), lbl('Saldo:'), val(saldo_val)],
+    ]
+    t_dias = Table(dias_rows, colWidths=[wa, wb, wc, wa, wb, wc])
+    t_dias.setStyle(TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('SPAN',          (0, 2), (3, 2)),
+        ('ALIGN',         (4, 2), (5, 2), 'RIGHT'),
+    ]))
+    elements.append(t_dias)
+    elements.append(Spacer(1, 0.1*cm))
+
+    # ── Vacaciones autorizadas por ───────────────────────────
+    elements.append(section_hdr("VACACIONES AUTORIZADAS POR"))
+
+    firmas = _PDF_FIRMAS.get(tipo, [])
+
+    if tipo == 'GERENTE_GENERAL':
+        t_nap = Table([[Paragraph("<b>NO POSEE NIVEL DE APROBACIÓN</b>", sBCenter)]], colWidths=[W])
+        t_nap.setStyle(TableStyle([
+            ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+            ('TOPPADDING',    (0, 0), (-1, -1), 18),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 18),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        elements.append(t_nap)
+    else:
+        n  = len(firmas)
+        fw = W / n
+        row_lbl = [bctr(label) for (label, _) in firmas]
+        row_cod = [
+            ctr(f"Cod. Aprobador (Nivel {nivel}): {aprobadores.get(nivel, '—')}")
+            for (_, nivel) in firmas
+        ]
+        t_ap = Table([row_lbl, row_cod], colWidths=[fw] * n)
+        t_ap.setStyle(TableStyle([
+            ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+            ('INNERGRID',     (0, 0), (-1, -1), 0.5, BLACK),
+            ('TOPPADDING',    (0, 0), (-1,  0), 22),
+            ('BOTTOMPADDING', (0, 0), (-1,  0), 6),
+            ('TOPPADDING',    (0, 1), (-1,  1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1,  1), 6),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'BOTTOM'),
+        ]))
+        elements.append(t_ap)
+
+    # ── Firma funcionario + RRHH ─────────────────────────────
+    wh = W / 2
+    t_fin = Table([
+        [bctr('Firma funcionario'), bctr('Firma del Jefe de Recursos Humanos')],
+        [ctr(f"Cod. Funcionario: {f.cod_funcionario}"), ctr(f"Cod. Encargado de RRHH: {cod_rrhh}")],
+    ], colWidths=[wh, wh])
+    t_fin.setStyle(TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.5, BLACK),
+        ('TOPPADDING',    (0, 0), (-1,  0), 26),
+        ('BOTTOMPADDING', (0, 0), (-1,  0), 6),
+        ('TOPPADDING',    (0, 1), (-1,  1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1,  1), 6),
+        ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',        (0, 0), (-1, -1), 'BOTTOM'),
+    ]))
+    elements.append(t_fin)
+    elements.append(Spacer(1, 0.15*cm))
+
+    # ── Nota y fecha de impresión ────────────────────────────
+    fecha_imp = date.today().strftime('%d/%m/%Y')
+    t_nota = Table([[
+        Paragraph(
+            "Nota: El funcionario al firmar está en total acuerdo en haber presentado y aprobada su solicitud.",
+            sSmall
+        ),
+        Paragraph(f"<b>Fecha:</b> {fecha_imp}", sSmallB),
+    ]], colWidths=[W * 0.72, W * 0.28])
+    t_nota.setStyle(TableStyle([
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('ALIGN',         (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(t_nota)
+
+    doc.build(elements)
+    return buffer.getvalue()

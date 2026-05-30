@@ -1,251 +1,164 @@
-// ======================================== DATOS DE PRUEBA SIMULADOS ========================================
-// Estos datos simulan lo que tu backend devolvería.
-const allVacationRequests = [
-    { cargo: 'Analista Contable', fechaSolicitud: '20/11/2025', fechaInicio: '15/12/2025', dias: 10, fechaFinal: '29/12/2025', saldo: 20, unidad: 'administrativa', contrato: 'item', funcionario: 'Juan Pérez' },
-    { cargo: 'Médico General', fechaSolicitud: '15/10/2025', fechaInicio: '05/01/2026', dias: 5, fechaFinal: '11/01/2026', saldo: 25, unidad: 'salud', contrato: 'indefinido', funcionario: 'María Gómez' },
-    { cargo: 'Auxiliar RRHH', fechaSolicitud: '01/12/2025', fechaInicio: '01/02/2026', dias: 15, fechaFinal: '22/02/2026', saldo: 15, unidad: 'administrativa', contrato: 'indefinido', funcionario: 'Carlos Mesa' },
-    { cargo: 'Enfermera', fechaSolicitud: '10/11/2025', fechaInicio: '20/12/2025', dias: 7, fechaFinal: '30/12/2025', saldo: 23, unidad: 'salud', contrato: 'item', funcionario: 'Ana Vaca' },
-    { cargo: 'Jefe Administrativo', fechaSolicitud: '05/10/2025', fechaInicio: '01/03/2026', dias: 20, fechaFinal: '30/03/2026', saldo: 10, unidad: 'administrativa', contrato: 'indefinido', funcionario: 'Pedro Roca' },
-];
+'use strict';
 
-// ======================================== ELEMENTOS DEL DOM ========================================
-const unidadOrgSelect = document.getElementById('unidadOrg');
-const tipoContratoSelect = document.getElementById('tipoContrato');
-const funcionarioInput = document.getElementById('funcionarioFilter');
-const btnFilter = document.getElementById('btnFilter');
-const btnClear = document.getElementById('btnClear');
-const tableBody = document.getElementById('vacationTableBody');
+const API_HISTORIAL = '/api/vacaciones/historial-rrhh/';
+const API_PDF       = '/api/vacaciones/historial-rrhh/pdf/';
 
+let _pendientePDF = null;
+let _combosListos = false;
 
-// ======================================== FUNCIONES DE RENDERIZADO ========================================
-
-/**
- * Crea una fila de la tabla a partir de un objeto de solicitud,
- * incluyendo los atributos data-label para la vista móvil (Card View).
- * @param {object} request - Objeto con los datos de la solicitud.
- */
-function createTableRow(request) {
-    const row = document.createElement('tr');
-    
-    // NOTA: Se usan los atributos 'data-label' para mostrar los encabezados en la vista móvil (CSS).
-    row.innerHTML = `
-        <td data-label="Cargo">${request.cargo}</td>
-        <td data-label="Fecha Solicitud">${request.fechaSolicitud}</td>
-        <td data-label="Fecha Inicio">${request.fechaInicio}</td>
-        <td data-label="Días Solicitados">${request.dias}</td>
-        <td data-label="Fecha Final">${request.fechaFinal}</td>
-        <td data-label="Saldo de Días Adeudados">${request.saldo}</td>
-        <td data-label="Documento PDF">
-            <button class="btn-pdf" onclick="downloadPdf('${request.funcionario}', '${request.fechaSolicitud}')">
-                <i class="material-symbols-outlined">picture_as_pdf</i>
-            </button>
-        </td>
-    `;
-    return row;
-}
-
-/**
- * Renderiza la lista de solicitudes en la tabla.
- * @param {Array<object>} requests - Lista de solicitudes a mostrar.
- */
-function renderTable(requests) {
-    tableBody.innerHTML = ''; // Limpiar la tabla
-    if (requests.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No se encontraron solicitudes con los filtros aplicados.</td></tr>';
-        return;
-    }
-    requests.forEach(request => {
-        tableBody.appendChild(createTableRow(request));
-    });
-}
-
-// Función simulada para descargar el PDF
-function downloadPdf(funcionario, fecha) {
-    AppDialog.alert(`Descargando PDF para la solicitud de ${funcionario}, presentada el ${fecha}.`, {
-        title: 'Descarga iniciada',
-        icon: 'download'
-    });
-}
-window.downloadPdf = downloadPdf; // Hacer la función accesible globalmente
-
-// ======================================== LÓGICA DE FILTRADO (SIMULACIÓN DE BACKEND) ========================================
-
-/**
- * Función que simula la llamada a tu backend para obtener los datos filtrados.
- */
-function fetchData(filters) {
-    console.log("--- SIMULACIÓN DE LLAMADA A BACKEND ---");
-    console.log("Filtros a enviar a la API:", filters);
-    
-    // En un entorno real, aquí iría tu función 'fetch' a la API.
-    
-    // --- LÓGICA DE FILTRADO EN EL FRONTEND (Solo para demostración): ---
-    let filteredResults = allVacationRequests.filter(request => {
-        const matchUnidad = filters.unidad === 'todos' || request.unidad === filters.unidad;
-        const matchContrato = filters.contrato === 'todos' || request.contrato === filters.contrato;
-        const matchFuncionario = request.funcionario.toLowerCase().includes(filters.funcionario.toLowerCase());
-        
-        return matchUnidad && matchContrato && matchFuncionario;
-    });
-
-    // Simulamos un retraso de red
-    setTimeout(() => {
-        renderTable(filteredResults);
-        console.log(`Resultados encontrados: ${filteredResults.length}`);
-    }, 300); 
-}
-
-
-// ======================================== MANEJADORES DE EVENTOS ========================================
-
-/**
- * 1. Recoge los valores de los filtros y llama a fetchData.
- */
-function handleFilter() {
-    const filters = {
-        unidad: unidadOrgSelect.value,
-        contrato: tipoContratoSelect.value,
-        funcionario: funcionarioInput.value.trim() 
-    };
-    
-    fetchData(filters);
-}
-
-/**
- * 2. Limpia los filtros y renderiza todos los datos.
- */
-function handleClear() {
-    unidadOrgSelect.value = 'todos';
-    tipoContratoSelect.value = 'todos';
-    funcionarioInput.value = '';
-    
-    // Recargar la tabla con todos los datos
-    fetchData({
-        unidad: 'todos',
-        contrato: 'todos',
-        funcionario: ''
-    });
-}
-
-// 3. Event Listeners
-btnFilter.addEventListener('click', handleFilter);
-btnClear.addEventListener('click', handleClear);
-
-// 4. Inicialización
+// ── Inicialización ────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    _initPerfil();
-    handleClear();
+    cargarDatos();
+
+    document.getElementById('btnFilter').addEventListener('click', handleFilter);
+    document.getElementById('btnClear').addEventListener('click', handleClear);
+    document.getElementById('btnCancelarPDF').addEventListener('click', cerrarModal);
+    document.getElementById('btnConfirmarPDF').addEventListener('click', confirmarDescarga);
+    document.getElementById('funcionarioFilter').addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleFilter();
+    });
+
+    // Event delegation para botones PDF — evita problemas con onclick inline
+    document.getElementById('vacationTableBody').addEventListener('click', e => {
+        const btn = e.target.closest('.btn-pdf');
+        if (!btn) return;
+        abrirModalPDF(
+            parseInt(btn.dataset.id, 10),
+            btn.dataset.nombre,
+            btn.dataset.fecha
+        );
+    });
 });
 
-async function _initPerfil() {
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (!csrfMeta) return;
+// ── Carga de datos ────────────────────────────────────────────
+async function cargarDatos(params = {}) {
+    const tableBody = document.getElementById('vacationTableBody');
+    tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#999">Cargando...</td></tr>';
+
+    const url = new URL(API_HISTORIAL, window.location.origin);
+    Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+
     try {
-        const resp = await fetch('/api/usuario/mi-perfil/', {
-            headers: { 'X-CSRFToken': csrfMeta.content },
-        });
-        const data = await resp.json();
-        if (data.error) return;
-        window.initProfileSwitcher?.({ roles: data.roles, nombre: data.nombre_completo });
+        const res  = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+            tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:#c00">${data.error || 'Error al cargar datos.'}</td></tr>`;
+            return;
+        }
+
+        window.initProfileSwitcher?.({ roles: data.usuario.roles, nombre: data.usuario.nombre });
         window.setupProfileToggle?.();
-    } catch (e) {
-        console.warn('Profile switcher no disponible:', e);
+
+        poblarCombos(data.filtros);
+        renderTable(data.solicitudes);
+
+    } catch (err) {
+        tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#c00">Error de conexión.</td></tr>';
+        console.error(err);
     }
 }
 
-/**
- * Renderiza la lista de solicitudes en la tabla.
- * @param {Array<object>} requests - Lista de solicitudes a mostrar.
- */
-function renderTable(requests) {
-    tableBody.innerHTML = ''; // Limpiar la tabla
-    if (requests.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No se encontraron solicitudes con los filtros aplicados.</td></tr>';
+// ── Poblar combos (solo la primera carga) ─────────────────────
+function poblarCombos(filtros) {
+    if (_combosListos) return;
+    _combosListos = true;
+
+    const selUnidad = document.getElementById('unidadOrg');
+    filtros.unidades.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id_unidad;
+        opt.textContent = u.nombre;
+        selUnidad.appendChild(opt);
+    });
+
+    const selContrato = document.getElementById('tipoContrato');
+    filtros.tipos_contrato.forEach(tc => {
+        const opt = document.createElement('option');
+        opt.value = tc;
+        opt.textContent = tc;
+        selContrato.appendChild(opt);
+    });
+}
+
+// ── Render de tabla ───────────────────────────────────────────
+function renderTable(solicitudes) {
+    const tableBody = document.getElementById('vacationTableBody');
+    tableBody.innerHTML = '';
+
+    if (!solicitudes.length) {
+        tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#999">No se encontraron solicitudes aprobadas.</td></tr>';
         return;
     }
-    requests.forEach(request => {
-        tableBody.appendChild(createTableRow(request));
+
+    solicitudes.forEach(sol => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td data-label="Funcionario"><strong>${esc(sol.funcionario)}</strong></td>
+            <td data-label="Cargo">${esc(sol.cargo)}</td>
+            <td data-label="Fecha Solicitud">${fmt(sol.fecha_solicitud)}</td>
+            <td data-label="Fecha Inicio">${fmt(sol.fecha_salida)}</td>
+            <td data-label="Días Solicitados">${sol.dias}</td>
+            <td data-label="Fecha Final">${fmt(sol.fecha_retorno)}</td>
+            <td data-label="Saldo de Días Adeudados">${sol.dias_adeudados.toFixed(1)}</td>
+            <td data-label="Documento PDF">
+                <button class="btn-pdf"
+                    data-id="${sol.id}"
+                    data-nombre="${esc(sol.funcionario)}"
+                    data-fecha="${sol.fecha_solicitud}">
+                    <i class="material-symbols-outlined">picture_as_pdf</i>
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
     });
 }
 
-// Función simulada para descargar el PDF
-function downloadPdf(funcionario, fecha) {
-    AppDialog.alert(`Descargando PDF para la solicitud de ${funcionario}, presentada el ${fecha}.`, {
-        title: 'Descarga iniciada',
-        icon: 'download'
-    });
-}
-window.downloadPdf = downloadPdf; // Hacer la función accesible globalmente
-
-// ======================================== LÓGICA DE FILTRADO (SIMULACIÓN DE BACKEND) ========================================
-
-/**
- * 💡 FUNCIÓN CLAVE: Esta función simula la llamada a tu backend.
- * En un entorno real, aquí harías un 'fetch' a tu API.
- */
-function fetchData(filters) {
-    console.log("--- SIMULACIÓN DE LLAMADA A BACKEND ---");
-    console.log("Filtros a enviar a la API:", filters);
-
-    // En un entorno real, harías algo como:
-    // fetch(`/api/solicitudes?unidad=${filters.unidad}&contrato=${filters.contrato}&search=${filters.funcionario}`)
-    //     .then(response => response.json())
-    //     .then(data => renderTable(data));
-    
-    // --- LÓGICA DE FILTRADO EN EL FRONTEND (Solo para demostración): ---
-    
-    let filteredResults = allVacationRequests.filter(request => {
-        const matchUnidad = filters.unidad === 'todos' || request.unidad === filters.unidad;
-        const matchContrato = filters.contrato === 'todos' || request.contrato === filters.contrato;
-        const matchFuncionario = request.funcionario.toLowerCase().includes(filters.funcionario.toLowerCase());
-        
-        return matchUnidad && matchContrato && matchFuncionario;
-    });
-
-    // Simulamos un retraso de red
-    setTimeout(() => {
-        renderTable(filteredResults);
-        console.log(`Resultados encontrados: ${filteredResults.length}`);
-    }, 300); 
-}
-
-
-// ======================================== MANEJADORES DE EVENTOS ========================================
-
-/**
- * 1. Recoge los valores de los filtros y llama a fetchData.
- */
+// ── Filtros ───────────────────────────────────────────────────
 function handleFilter() {
-    const filters = {
-        unidad: unidadOrgSelect.value,
-        contrato: tipoContratoSelect.value,
-        funcionario: funcionarioInput.value.trim() 
-    };
-    
-    fetchData(filters);
-}
-
-/**
- * 2. Limpia los filtros y renderiza todos los datos.
- */
-function handleClear() {
-    unidadOrgSelect.value = 'todos';
-    tipoContratoSelect.value = 'todos';
-    funcionarioInput.value = '';
-    
-    // Recargar la tabla con todos los datos
-    fetchData({
-        unidad: 'todos',
-        contrato: 'todos',
-        funcionario: ''
+    cargarDatos({
+        unidad:        document.getElementById('unidadOrg').value,
+        tipo_contrato: document.getElementById('tipoContrato').value,
+        funcionario:   document.getElementById('funcionarioFilter').value.trim(),
     });
 }
 
-// 3. Asignación de Event Listeners a los botones
-btnFilter.addEventListener('click', handleFilter);
-btnClear.addEventListener('click', handleClear);
+function handleClear() {
+    document.getElementById('unidadOrg').value        = '';
+    document.getElementById('tipoContrato').value      = '';
+    document.getElementById('funcionarioFilter').value = '';
+    cargarDatos();
+}
 
-// 4. Inicialización: Cargar la tabla al iniciar
-document.addEventListener('DOMContentLoaded', () => {
-    handleClear(); // Carga la tabla con todos los datos por defecto
-});
+// ── Modal PDF ─────────────────────────────────────────────────
+function abrirModalPDF(id, nombre, fechaSol) {
+    _pendientePDF = id;
+    document.getElementById('modalPDFMensaje').textContent =
+        `Descargando PDF para la solicitud de ${nombre}, presentada el ${fmt(fechaSol)}.`;
+    document.getElementById('modalPDF').style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modalPDF').style.display = 'none';
+    _pendientePDF = null;
+}
+
+function confirmarDescarga() {
+    if (!_pendientePDF) return;
+    const id = _pendientePDF;
+    cerrarModal();
+    window.location.href = `${API_PDF}${id}/`;
+}
+
+// ── Utilidades ────────────────────────────────────────────────
+function fmt(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+function esc(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
