@@ -53,7 +53,7 @@
             <div class="filtro-grupo" style="flex:2; min-width:280px;">
                 <label class="filtro-label"><i class="material-symbols-outlined">person</i> Buscar Funcionario por Nombre</label>
                 <div class="search-box" style="position:relative;">
-                    <input type="text" id="searchFuncionario" placeholder="Escribir nombre del funcionario..." autocomplete="off" oninput="mostrarSugerencias()">
+                    <input type="text" id="searchFuncionario" placeholder="Escribir nombre del funcionario..." autocomplete="off">
                     <button class="btn-search" onclick="buscarFuncionarioManual()"><i class="material-symbols-outlined">search</i></button>
                     <div id="sugerenciasDropdown" class="sugerencias-dropdown" style="display:none"></div>
                 </div>
@@ -89,8 +89,8 @@
         </div>
 
     </div>
-    <script src="{% static 'js/employees/HistorialCargos.js' %}"></script>
     <script src="{% static 'js/shared/profile-switcher.js' %}"></script>
+    <script src="{% static 'js/employees/HistorialCargos.js' %}"></script>
     <script src="{% static 'js/shared/notifications.js' %}"></script>
 </body>
 </html>

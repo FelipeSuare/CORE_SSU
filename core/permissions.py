@@ -11,7 +11,7 @@ _F = frozenset  # alias
 PERMISOS: dict[str, frozenset] = {
     # Gestión de empleados
     'funcionarios':     _F(['RRHH', 'Administrador']),
-    'historial_cargos': _F(['Funcionario', 'Administrador', 'Auditoria']),
+    'historial_cargos': _F(['RRHH', 'Administrador', 'Auditoria']),
 
     # Core
     'feriados':         _F(['RRHH', 'Administrador']),

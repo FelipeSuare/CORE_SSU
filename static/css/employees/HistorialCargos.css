@@ -355,7 +355,12 @@ input[type="text"]:focus {
     background: #fefcfd;
 }
 .card-left { display: flex; align-items: baseline; gap: 12px; }
-.card-title-block { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.card-title-block { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    flex-wrap: wrap;
+}
 .card-title {
     color: var(--purple);
     font-size: 1.05em;
@@ -366,7 +371,12 @@ input[type="text"]:focus {
 .card-right { display: flex; gap: 10px; align-items: center; }
 
 .resumen-inline { display: flex; align-items: center; gap: 8px; font-size: 0.82em; font-weight: 600; }
-.resumen-item-cargos { color: var(--purple); }
+.resumen-item-cargos {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--purple);
+}
 
 /* ══════════════════════════════════════════
    BLOQUES POR CARGO — DISEÑO MEJORADO

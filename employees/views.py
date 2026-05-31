@@ -1,5 +1,6 @@
 import json
 from datetime import date
+from django.db.models import Q
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -10,7 +11,7 @@ from django.db import transaction, connection, IntegrityError
 from core.models import UnidadOrganizacional
 from employees.models import Persona, Funcionario, HistorialCargo
 from accounts.models import Roles, FuncionarioRol
-from vacations.models import JerarquiaAprobacion
+from vacations.models import GestionVacacion, JerarquiaAprobacion
 
 _NIVELES = {
     'SUBORDINADO':            3,
@@ -21,19 +22,30 @@ _NIVELES = {
     'GERENTE_GENERAL':        0,
 }
 
-_ROLES_EMPLOYEES = {'RRHH', 'Administrador'}
+_ROLES_EMPLOYEES  = frozenset({'RRHH', 'Administrador'})
+_ROLES_HISTORIAL  = frozenset({'RRHH', 'Administrador', 'Auditoria'})
+
+_ROL_LABEL = {
+    'Administrador': 'ADMINISTRADOR',
+    'RRHH':          'RECURSOS HUMANOS',
+    'Auditoria':     'AUDITORÍA',
+}
+_ROL_PRIORIDAD = ['Administrador', 'RRHH', 'Auditoria']
 
 
-def _check_acceso_employees(request):
+def _get_roles_usuario(request):
     ci = request.user.username
     try:
         f = Funcionario.objects.get(ci__ci=ci, estado='ACTIVO')
+        return set(FuncionarioRol.objects.filter(
+            cod_funcionario=f, activo=True
+        ).values_list('id_roles__tipo_rol', flat=True))
     except Funcionario.DoesNotExist:
-        return False
-    roles = set(FuncionarioRol.objects.filter(
-        cod_funcionario=f, activo=True
-    ).values_list('id_roles__tipo_rol', flat=True))
-    return bool(roles & _ROLES_EMPLOYEES)
+        return set()
+
+
+def _check_acceso_employees(request):
+    return bool(_get_roles_usuario(request) & _ROLES_EMPLOYEES)
 
 
 def _calcular_antiguedad(fecha_ingreso):
@@ -104,7 +116,7 @@ def funcionarios_view(request):
 
 @login_required(login_url='login_home')
 def historial_cargos_view(request):
-    if not _check_acceso_employees(request):
+    if not (_get_roles_usuario(request) & _ROLES_HISTORIAL):
         return render(request, 'shared/sin_acceso.html', status=403)
     return render(request, 'employees/HistorialCargos.html')
 
@@ -336,9 +348,26 @@ def editar_funcionario(request, cod):
 
             cargo_act = HistorialCargo.objects.filter(cod_funcionario=funcionario, es_actual=True).first()
             if cargo_act and (cargo_act.cargo != cargo or cargo_act.tipo_contrato != tipo_contrato):
+                # Snapshot gestion_vacacion → historial_cargo al momento del cierre
+                gv = GestionVacacion.objects.filter(cod_funcionario=funcionario).first()
+                if gv:
+                    cargo_act.saldo_gestion1_al_salir = gv.dias_gestion1
+                    cargo_act.anio_gestion1_al_salir  = gv.anio_gestion1
+                    cargo_act.saldo_gestion2_al_salir = gv.dias_gestion2
+                    cargo_act.anio_gestion2_al_salir  = gv.anio_gestion2
+                    cargo_act.saldo_gestion3_al_salir = gv.dias_gestion3
+                    cargo_act.anio_gestion3_al_salir  = gv.anio_gestion3
+                    cargo_act.saldo_gestion4_al_salir = gv.dias_gestion4
+                    cargo_act.anio_gestion4_al_salir  = gv.anio_gestion4
                 cargo_act.es_actual = False
                 cargo_act.fecha_fin = hoy
-                cargo_act.save(update_fields=['es_actual', 'fecha_fin'])
+                cargo_act.save(update_fields=[
+                    'es_actual', 'fecha_fin',
+                    'saldo_gestion1_al_salir', 'anio_gestion1_al_salir',
+                    'saldo_gestion2_al_salir', 'anio_gestion2_al_salir',
+                    'saldo_gestion3_al_salir', 'anio_gestion3_al_salir',
+                    'saldo_gestion4_al_salir', 'anio_gestion4_al_salir',
+                ])
                 HistorialCargo.objects.create(
                     cod_funcionario=funcionario, cargo=cargo,
                     tipo_contrato=tipo_contrato, fecha_inicio=hoy, es_actual=True,
@@ -458,4 +487,112 @@ def exportar_funcionarios(request):
         'funcionarios': filas,
         'fecha':        date.today().strftime('%d/%m/%Y'),
         'filtros':      filtros,
+    })
+
+
+# ──────────────────────────────────────────────────────────────
+#  Autocompletado de funcionarios (para Historial de Cargos)
+# ──────────────────────────────────────────────────────────────
+
+@login_required(login_url='login_home')
+def buscar_funcionarios(request):
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'funcionarios': []})
+
+    qs = (
+        Funcionario.objects
+        .select_related('ci')
+        .filter(estado='ACTIVO')
+        .filter(
+            Q(ci__nombre__icontains=q) |
+            Q(ci__ap_paterno__icontains=q) |
+            Q(ci__ap_materno__icontains=q)
+        )
+        .order_by('ci__ap_paterno', 'ci__nombre')[:10]
+    )
+
+    resultado = [{
+        'cod_funcionario': f.cod_funcionario,
+        'nombre_completo': f"{f.ci.nombre} {f.ci.ap_paterno} {f.ci.ap_materno or ''}".strip(),
+        'ci': f.ci.ci,
+    } for f in qs]
+
+    return JsonResponse({'funcionarios': resultado})
+
+
+# ──────────────────────────────────────────────────────────────
+#  Historial de cargos de un funcionario
+# ──────────────────────────────────────────────────────────────
+
+@login_required(login_url='login_home')
+def historial_cargos_api(request, cod):
+    roles = _get_roles_usuario(request)
+    if not (roles & _ROLES_HISTORIAL):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+
+    try:
+        f = Funcionario.objects.select_related('ci').get(cod_funcionario=cod)
+    except Funcionario.DoesNotExist:
+        return JsonResponse({'error': 'Funcionario no encontrado'}, status=404)
+
+    cargos_qs = list(
+        HistorialCargo.objects.filter(cod_funcionario=f).order_by('fecha_inicio')
+    )
+
+    gv = GestionVacacion.objects.filter(cod_funcionario=f).first()
+
+    cargos = []
+    for i, hc in enumerate(cargos_qs):
+        if hc.es_actual:
+            gestiones = [
+                {'anio': getattr(gv, f'anio_gestion{n}'),
+                 'saldo': float(getattr(gv, f'dias_gestion{n}') or 0)}
+                for n in range(1, 5)
+            ] if gv else [{'anio': None, 'saldo': 0.0}] * 4
+            saldo_total = float(gv.dias_adeudados or 0) if gv else 0.0
+        else:
+            gestiones = [
+                {'anio':  getattr(hc, f'anio_gestion{n}_al_salir'),
+                 'saldo': float(getattr(hc, f'saldo_gestion{n}_al_salir') or 0)}
+                for n in range(1, 5)
+            ]
+            saldo_total = sum(g['saldo'] for g in gestiones)
+
+        # Saldo anterior = saldo_total del cargo previo (referencia de auditoría)
+        saldo_anterior = 0.0
+        if i > 0:
+            prev = cargos[i - 1]
+            saldo_anterior = prev['saldo_total']
+
+        cargos.append({
+            'cargo':          hc.cargo,
+            'tipo_contrato':  hc.tipo_contrato,
+            'fecha_inicio':   hc.fecha_inicio.strftime('%Y-%m-%d'),
+            'fecha_fin':      hc.fecha_fin.strftime('%Y-%m-%d') if hc.fecha_fin else None,
+            'es_actual':      hc.es_actual,
+            'saldo_anterior': saldo_anterior,
+            'saldo_total':    saldo_total,
+            'gestiones':      gestiones,
+        })
+
+    # Etiqueta del rol para el PDF
+    rol_label = 'RECURSOS HUMANOS'
+    for rol in _ROL_PRIORIDAD:
+        if rol in roles:
+            rol_label = _ROL_LABEL[rol]
+            break
+
+    cargo_actual_hc = next((hc for hc in cargos_qs if hc.es_actual), None)
+
+    return JsonResponse({
+        'funcionario': {
+            'cod_funcionario': f.cod_funcionario,
+            'nombre_completo': f"{f.ci.nombre} {f.ci.ap_paterno} {f.ci.ap_materno or ''}".strip(),
+            'ci':              f.ci.ci,
+            'cargo_actual':    cargo_actual_hc.cargo if cargo_actual_hc else '—',
+            'fecha_ingreso':   f.fecha_ingreso.strftime('%Y-%m-%d'),
+        },
+        'cargos':    cargos,
+        'rol_label': rol_label,
     })

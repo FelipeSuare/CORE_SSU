@@ -42,7 +42,22 @@ body {
 }
 
 /* ── HEADER ── */
-.module-header { margin-bottom: 28px; }
+.header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+.module-header { flex: 1; padding: 0 5px; }
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    padding-top: 6px;
+}
+
 .module-title {
     color: var(--purple-dark);
     font-size: 2em;
@@ -259,6 +274,13 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr:nth-child(even) td { background: #fdf8fb; }
 tbody tr:hover td { background: rgba(249,201,201,0.22); transition: background 0.15s; }
 
+/* ── COLUMNA TEXTO (motivo, observaciones) ── */
+.td-texto {
+    text-align: left !important;
+    max-width: 160px;
+    white-space: normal;
+}
+
 /* ── APROBACIÓN POR NIVELES ── */
 .nivel-aprobacion {
     display: flex;
@@ -270,7 +292,16 @@ tbody tr:hover td { background: rgba(249,201,201,0.22); transition: background 0
     font-size: 0.82em;
     font-weight: 600;
     color: var(--purple-dark);
+    display: flex;
+    align-items: center;
+    gap: 3px;
 }
+.nivel-icono {
+    font-size: 0.95em !important;
+    vertical-align: middle;
+}
+.nivel-icono.aprobado { color: #27ae60; }
+.nivel-icono.rechazado { color: #e74c3c; }
 .nivel-fecha {
     font-size: 0.75em;
     color: #aaa;

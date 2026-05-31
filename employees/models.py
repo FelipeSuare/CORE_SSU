@@ -37,9 +37,13 @@ class HistorialCargo(models.Model):
     fecha_fin = models.DateField(blank=True, null=True)
     es_actual = models.BooleanField(default=True)
     saldo_gestion1_al_salir = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
+    anio_gestion1_al_salir  = models.IntegerField(blank=True, null=True)
     saldo_gestion2_al_salir = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
+    anio_gestion2_al_salir  = models.IntegerField(blank=True, null=True)
     saldo_gestion3_al_salir = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
+    anio_gestion3_al_salir  = models.IntegerField(blank=True, null=True)
     saldo_gestion4_al_salir = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
+    anio_gestion4_al_salir  = models.IntegerField(blank=True, null=True)
 
     class Meta:
         db_table = 'historial_cargo'

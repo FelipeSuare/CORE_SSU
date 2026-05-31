@@ -30,8 +30,20 @@
                 {% endif %}
             </div>
             <div class="user-info">
-                <h3 class="user-name">{{ user.first_name }} {{ user.last_name }}</h3>
-                <p class="user-role">{{ rol_principal }}</p>
+                <h3 class="user-name">{{ nombre_completo_usuario|default:user.get_full_name }}</h3>
+                {% if cargo_actual_usuario %}
+                    <p class="user-cargo">
+                        <i class="material-symbols-outlined">work</i>
+                        {{ cargo_actual_usuario }}
+                    </p>
+                {% endif %}
+                <p class="user-role">
+                    <i class="material-symbols-outlined">shield_person</i>
+                    {{ rol_principal }}
+                </p>
+                {% if descripcion_rol_principal %}
+                    <p class="user-descripcion-rol">{{ descripcion_rol_principal }}</p>
+                {% endif %}
             </div>
         </div>
 

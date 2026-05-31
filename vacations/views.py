@@ -29,6 +29,22 @@ _NIVEL_LABELS = {
 
 _ESTADOS_PENDIENTE = ('PENDIENTE_JEFE', 'PENDIENTE_GERENTE', 'PENDIENTE_GERENTE_GENERAL')
 
+_NIVEL_COLS = {
+    'SUBORDINADO': [
+        {'db_nivel': 1, 'header': 'Nivel 1', 'subtitle': 'Jefe de Área'},
+        {'db_nivel': 2, 'header': 'Nivel 2', 'subtitle': 'Gte. Adm./Salud'},
+        {'db_nivel': 3, 'header': 'Nivel 3', 'subtitle': 'Gerente General'},
+    ],
+    'JEFE_AREA': [
+        {'db_nivel': 1, 'header': 'Nivel 2', 'subtitle': 'Gte. Adm./Salud'},
+        {'db_nivel': 2, 'header': 'Nivel 3', 'subtitle': 'Gerente General'},
+    ],
+    'DEPENDENCIA_DIRECTA':    [{'db_nivel': 1, 'header': 'Nivel 3', 'subtitle': 'Gerente General'}],
+    'GERENTE_ADMINISTRATIVO': [{'db_nivel': 1, 'header': 'Nivel 3', 'subtitle': 'Gerente General'}],
+    'GERENTE_SALUD':          [{'db_nivel': 1, 'header': 'Nivel 3', 'subtitle': 'Gerente General'}],
+    'GERENTE_GENERAL':        [],
+}
+
 
 # ──────────────────────────────────────────────────────────────
 #  Helpers internos
@@ -428,6 +444,8 @@ def mis_solicitudes(request):
             'nombre': f"{f.ci.nombre} {f.ci.ap_paterno} {f.ci.ap_materno or ''}".strip(),
             'ci': f.ci.ci,
         },
+        'tipo_funcionario': f.tipo_funcionario,
+        'nivel_cols': _NIVEL_COLS.get(f.tipo_funcionario, _NIVEL_COLS['SUBORDINADO']),
     })
 
 

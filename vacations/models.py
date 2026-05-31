@@ -1,4 +1,7 @@
+from decimal import Decimal
 from django.db import models
+from django.db.models import Value
+from django.db.models.functions import Coalesce
 
 class JerarquiaAprobacion(models.Model):
     id_jerarquia = models.AutoField(primary_key=True)
@@ -25,7 +28,16 @@ class GestionVacacion(models.Model):
     dias_gestion4 = models.DecimalField(max_digits=4, decimal_places=1, default=0)
     anio_gestion4 = models.IntegerField(blank=True, null=True)
     dias_negados = models.DecimalField(max_digits=4, decimal_places=1, default=0)
-    dias_adeudados = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True) # GENERATED ALWAYS AS ... STORED
+    dias_adeudados = models.GeneratedField(
+        expression=(
+            Coalesce('dias_gestion1', Value(Decimal('0'))) +
+            Coalesce('dias_gestion2', Value(Decimal('0'))) +
+            Coalesce('dias_gestion3', Value(Decimal('0'))) +
+            Coalesce('dias_gestion4', Value(Decimal('0')))
+        ),
+        output_field=models.DecimalField(max_digits=4, decimal_places=1),
+        db_persist=True,
+    )
 
     class Meta:
         db_table = 'gestion_vacacion'
