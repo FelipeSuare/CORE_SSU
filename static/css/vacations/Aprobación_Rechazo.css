@@ -48,7 +48,7 @@ body {
     /* z-index: 9999;  */
     box-shadow: 0 4px 6px var(--shadow-heavy); 
     font-weight: bold;
-
+    transition: transform 0.3s, box-shadow 0.3s;
 }
 
 .back-to-menu:hover {

@@ -21,6 +21,20 @@ _NIVELES = {
     'GERENTE_GENERAL':        0,
 }
 
+_ROLES_EMPLOYEES = {'RRHH', 'Administrador'}
+
+
+def _check_acceso_employees(request):
+    ci = request.user.username
+    try:
+        f = Funcionario.objects.get(ci__ci=ci, estado='ACTIVO')
+    except Funcionario.DoesNotExist:
+        return False
+    roles = set(FuncionarioRol.objects.filter(
+        cod_funcionario=f, activo=True
+    ).values_list('id_roles__tipo_rol', flat=True))
+    return bool(roles & _ROLES_EMPLOYEES)
+
 
 def _calcular_antiguedad(fecha_ingreso):
     if not fecha_ingreso:
@@ -83,7 +97,16 @@ def _serializar_funcionario(f):
 
 @login_required(login_url='login_home')
 def funcionarios_view(request):
+    if not _check_acceso_employees(request):
+        return render(request, 'shared/sin_acceso.html', status=403)
     return render(request, 'employees/Funcionarios.html')
+
+
+@login_required(login_url='login_home')
+def historial_cargos_view(request):
+    if not _check_acceso_employees(request):
+        return render(request, 'shared/sin_acceso.html', status=403)
+    return render(request, 'employees/HistorialCargos.html')
 
 
 # ──────────────────────────────────────────────────────────────

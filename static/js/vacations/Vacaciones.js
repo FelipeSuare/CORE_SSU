@@ -137,14 +137,14 @@ function renderizarSaldos(saldos, gestionesConSaldo) {
     if (dias_negados > 0) {
         html += `
         <div class="saldo-card saldo-card-negados">
-            <div class="saldo-label">DÍAS NEGADOS</div>
+            <div class="saldo-label">DÍAS NEGADOS <i class="material-symbols-outlined" title="Registro histórico informativo de los días que la institución no permitió tomar. No vencen nunca. Ya fueron repuestos en la gestión más antigua por lo que no se suman al total adeudado." style="font-size:14px;cursor:help;vertical-align:middle">info</i></div>
             <div class="saldo-value">${dias_negados} <span>días</span></div>
         </div>`;
     }
 
     html += `
     <div class="saldo-card saldo-card-total">
-        <div class="saldo-label">TOTAL ADEUDADO</div>
+        <div class="saldo-label">TOTAL ADEUDADO <i class="material-symbols-outlined" title="Calculado automáticamente por la BD sumando únicamente las 4 gestiones. No incluye días negados para evitar doble conteo." style="font-size:14px;cursor:help;vertical-align:middle">info</i></div>
         <div class="saldo-value">${dias_adeudados} <span>días</span></div>
     </div>`;
 

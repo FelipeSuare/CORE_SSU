@@ -21,43 +21,25 @@ body {
 .main-container { max-width: 1400px; margin: 0 auto; }
 
 .back-to-menu {
-    position: fixed; 
-    top: 10px; 
-    right: 10px; 
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
-    background: var(--pink-dark); 
-    color: var(--white); 
-    padding: 10px 15px; 
-    text-decoration: none; 
-    border-radius: 25px; 
-    font-family: sans-serif; 
-    /* z-index: 9999;  */
-    box-shadow: 0 4px 6px var(--shadow-heavy); 
+    background: var(--pink-dark);
+    color: var(--white);
+    padding: 10px 15px;
+    text-decoration: none;
+    border-radius: 25px;
+    font-family: 'Montserrat', sans-serif;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.25);
     font-weight: bold;
+    white-space: nowrap;
     transition: transform 0.3s, box-shadow 0.3s;
-    margin-right: 20px;
-    margin-top: 20px;
 }
-
-.back-to-menu:hover {
+.back-to-menu:hover { 
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(0,0,0,.25);
 }
 
-/* ── HEADER ── */
-.module-header { margin-bottom: 28px; }
-.module-title {
-    color: var(--purple-dark);
-    font-size: 2em;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-.module-title i { font-size: 0.85em; }
 
 /* ── FILTROS ── */
 .filters-container {
@@ -226,7 +208,7 @@ table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 820px;
+    min-width: 1020px;
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(39,20,71,0.08);
@@ -241,7 +223,7 @@ thead tr:first-child th:first-child { border-radius: 12px 0 0 0; }
 thead tr:first-child th:last-child  { border-radius: 0 12px 0 0; }
 
 th {
-    padding: 12px 10px;
+    padding: 10px 8px;
     color: #fff;
     font-size: 0.78em;
     font-weight: 600;
@@ -272,18 +254,36 @@ th.th-gestion {
 
 /* Celdas */
 td {
-    padding: 12px 10px;
+    padding: 9px 8px;
     color: #444;
     font-size: 0.91em;
     font-weight: 500;
     border-bottom: 1px solid #f3eaf0;
     vertical-align: middle;
     text-align: center;
-    white-space: nowrap;
 }
 
-td:first-child { text-align: left; font-weight: 600; color: var(--purple-dark); padding-left: 16px; }
-td:nth-child(2) { text-align: left; }
+/* Nombre Completo — permite wrap */
+td:first-child {
+    text-align: left;
+    font-weight: 600;
+    color: var(--purple-dark);
+    padding-left: 16px;
+    min-width: 160px;
+    max-width: 230px;
+}
+
+/* Cargo — permite wrap */
+td:nth-child(2) {
+    text-align: left;
+    min-width: 120px;
+    max-width: 180px;
+}
+
+/* Columnas cortas: nowrap */
+td:nth-child(3), td:nth-child(4), td:nth-child(5),
+td:nth-child(6), td:nth-child(7), td:nth-child(8),
+td:nth-child(9), td:nth-child(10) { white-space: nowrap; }
 
 /* Esquinas redondeadas de la última fila */
 tbody tr:last-child td:first-child { border-radius: 0 0 0 12px; }
@@ -314,8 +314,9 @@ tbody tr:hover td { background: rgba(249,201,201,0.22); transition: background 0
 
 .cell-acciones {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
     gap: 4px;
 }
 
@@ -474,10 +475,161 @@ tbody tr:hover td { background: rgba(249,201,201,0.22); transition: background 0
 .historial-table tbody tr:nth-child(even) td { background: rgba(249,201,201,0.12); }
 .historial-table tbody tr:hover td { background: rgba(249,201,201,0.25); transition: background 0.15s; }
 
+/* ── RANGO DE AÑOS EN MODAL ── */
+.modal-header-left { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.rango-anios {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.rango-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.rango-item label {
+    font-size: 0.72em;
+    font-weight: 600;
+    color: var(--pink-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.input-wrapper.input-anio {
+    height: 34px;
+    width: 110px;
+    border-color: var(--pink-dark);
+}
+
+.input-wrapper.input-anio input {
+    font-size: 0.85em;
+    color: var(--purple-dark);
+}
+
+.rango-separador {
+    font-size: 1.1em;
+    color: #bbb;
+    margin-top: 18px;
+    font-weight: 700;
+}
+
+.btn-rango {
+    height: 34px;
+    padding: 0 14px;
+    font-size: 0.8em;
+    margin-top: 18px;
+}
+
+/* ── HEADER WRAPPER (patrón compartido) ── */
+.header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.module-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.module-header i {
+    font-size: 3.5em;
+    color: var(--purple-dark);
+}
+
+.module-subtitle {
+    color: var(--pink-dark);
+    font-size: 0.82em;
+    margin-top: 2px;
+    opacity: 0.85;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ── CELDAS DE GESTIÓN ── */
+.gestion-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.gestion-anio {
+    font-size: 0.72em;
+    color: #999;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* ── VACACIONES NEGADAS ── */
+.dias-negados-val {
+    display: inline-block;
+    background: rgba(210, 105, 30, 0.1);
+    color: #c06010;
+    font-weight: 700;
+    font-size: 0.95em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    cursor: help;
+}
+
+/* ── COLUMNAS DE ACCIÓN ── */
+.td-accion {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* ── DATOS DEL FUNCIONARIO EN MODAL ── */
+.modal-datos-func {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 20px;
+    background: #f8f5fb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 8px 0 4px;
+}
+
+.mdf-item {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    font-size: 0.85em;
+}
+
+.mdf-label {
+    font-weight: 700;
+    color: var(--pink-dark);
+    font-size: 0.78em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.mdf-saldo {
+    font-weight: 700;
+    color: var(--purple-dark);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
     body { padding: 14px; }
+    .header-wrapper { flex-direction: column; align-items: flex-start; }
     .filters-container { flex-direction: column; }
     .filter-group, .filter-group.wide { flex: 1 1 100%; }
     .input-action-wrapper { flex-wrap: wrap; }
+    .modal-datos-func { grid-template-columns: 1fr; }
 }

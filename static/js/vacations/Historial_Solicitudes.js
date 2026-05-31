@@ -107,7 +107,7 @@ function actualizarResumenInline() {
                 <i class="material-symbols-outlined">schedule</i> ${dias_pendientes} pendientes
             </span>
             <span class="resumen-sep">·</span>
-            <span class="resumen-item-rest">
+            <span class="resumen-item-rest" title="Calculado automáticamente por la BD sumando únicamente las 4 gestiones. No incluye días negados para evitar doble conteo.">
                 <i class="material-symbols-outlined">calendar_month</i> ${dias_adeudados} disponibles
             </span>
         </span>`;

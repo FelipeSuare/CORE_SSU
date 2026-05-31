@@ -1,130 +1,195 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // ══════════════════════════════════════════════
-    // GESTIONES (4 relativas al año de referencia)
+    // ESTADO DEL MÓDULO
     // ══════════════════════════════════════════════
-    const defaultYear = new Date().getFullYear();
-    let GESTIONES = calcularGestiones(defaultYear);
-
-    function calcularGestiones(anioBase) {
-        return [
-            String(anioBase - 3),
-            String(anioBase - 2),
-            String(anioBase - 1),
-            String(anioBase)
-        ];
-    }
-
-    function actualizarCabecerasGestiones() {
-        ['thG1','thG2','thG3','thG4'].forEach((id, i) => {
-            document.getElementById(id).textContent = GESTIONES[i];
-        });
-    }
-
-    actualizarCabecerasGestiones();
-
-    // Botón aplicar año
-    document.getElementById('btnAnio').addEventListener('click', () => {
-        const val = parseInt(document.getElementById('anioRef').value);
-        if (!val || val < 2000 || val > 2099) {
-            document.getElementById('anioRef').style.borderColor = 'red';
-            setTimeout(() => document.getElementById('anioRef').style.borderColor = '', 1500);
-            return;
-        }
-        GESTIONES = calcularGestiones(val);
-        actualizarCabecerasGestiones();
-        renderTabla(datosFiltrados);
-    });
-
-    document.getElementById('anioRef').addEventListener('keypress', e => {
-        if (e.key === 'Enter') document.getElementById('btnAnio').click();
-    });
-
-    // ══════════════════════════════════════════════
-    // DATOS DE PRUEBA
-    // ══════════════════════════════════════════════
-    const funcionarios = [
-        {
-            id: 1,
-            nombre: 'Jesús Mariaca Guardia Hormando',
-            cargo: 'Médico General M.T.',
-            fechaIngreso: '01/11/2023',
-            tipoContrato: 'Item',
-            area: 'Salud',
-            gestiones: { '2023': 0, '2024': 15, '2025': 0, '2026': 0 },
-            diasDisponibles: 15,
-        },
-        {
-            id: 2,
-            nombre: 'Ana María Gómez Pérez',
-            cargo: 'Jefe de Contabilidad',
-            fechaIngreso: '01/03/2018',
-            tipoContrato: 'Indefinido',
-            area: 'Administrativa',
-            gestiones: { '2023': 5, '2024': 10, '2025': 8, '2026': 2 },
-            diasDisponibles: 25,
-        },
-        {
-            id: 3,
-            nombre: 'Carlos Alberto Vaca Ríos',
-            cargo: 'Auxiliar Administrativo',
-            fechaIngreso: '15/06/2020',
-            tipoContrato: 'Item',
-            area: 'Administrativa',
-            gestiones: { '2023': 10, '2024': 0, '2025': 5, '2026': 0 },
-            diasDisponibles: 15,
-        },
-        {
-            id: 4,
-            nombre: 'María Elena Suárez Vidal',
-            cargo: 'Enfermera Profesional',
-            fechaIngreso: '10/04/2019',
-            tipoContrato: 'Item',
-            area: 'Salud',
-            gestiones: { '2023': 3, '2024': 12, '2025': 6, '2026': 0 },
-            diasDisponibles: 21,
-        },
-        {
-            id: 5,
-            nombre: 'Roberto Flores Mamani',
-            cargo: 'Técnico en Sistemas',
-            fechaIngreso: '20/08/2021',
-            tipoContrato: 'Indefinido',
-            area: 'Administrativa',
-            gestiones: { '2023': 0, '2024': 8, '2025': 10, '2026': 4 },
-            diasDisponibles: 22,
-        },
-    ];
-
-    let datosFiltrados = [...funcionarios];
-
-    // ══════════════════════════════════════════════
-    // MODO GESTIÓN ÚNICA
-    // ══════════════════════════════════════════════
-    let modoUnico = false;
-    let gestionUnica = null;
+    let todosFuncionarios  = [];
+    let datosFiltrados     = [];
+    let areaLabel          = 'RECURSOS HUMANOS';
+    let nombreRRHH         = '';
+    let modoUnico          = false;
+    let gestionUnica       = null;     // integer o null
+    let GESTIONES          = [];       // [2023, 2024, 2025, 2026]
+    let filtroContrato     = '';
+    let filtroUnidad       = '';
+    let filtroUnidadNombre = '';
 
     const toggleChk      = document.getElementById('toggleGestionUnica');
     const grupoUnico     = document.getElementById('grupoGestionUnica');
     const inputAnioUnico = document.getElementById('anioUnico');
-    const thColspan      = document.querySelector('th.th-group-label');
+    const thColspan      = document.getElementById('thGrupoLabel');
 
+    // ══════════════════════════════════════════════
+    // INICIALIZACIÓN
+    // ══════════════════════════════════════════════
+    async function init() {
+        await cargarPerfil();
+        await cargarUnidades();
+        await cargarFuncionarios();
+    }
+
+    // ══════════════════════════════════════════════
+    // PROFILE SWITCHER
+    // ══════════════════════════════════════════════
+    async function cargarPerfil() {
+        try {
+            const resp = await fetch('/api/usuario/mi-perfil/');
+            const data = await resp.json();
+            if (!data.error) {
+                window.initProfileSwitcher?.({ roles: data.roles, nombre: data.nombre_completo });
+                window.setupProfileToggle?.();
+            }
+        } catch (e) {
+            console.error('Error cargando perfil:', e);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // CARGA DE UNIDADES
+    // ══════════════════════════════════════════════
+    async function cargarUnidades() {
+        try {
+            const res  = await fetch('/api/reportes/personal/unidades/');
+            const data = await res.json();
+            if (data.error) return;
+
+            areaLabel  = data.area_label  || 'RECURSOS HUMANOS';
+            nombreRRHH = data.nombre_rrhh || '';
+
+            const sel = document.getElementById('unidadOrg');
+            data.unidades.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value       = u.id_unidad;
+                opt.textContent = u.nombre;
+                sel.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Error cargando unidades:', e);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // CARGA DE FUNCIONARIOS DESDE API
+    // ══════════════════════════════════════════════
+    async function cargarFuncionarios(params = {}) {
+        const tbody = document.getElementById('tablaBody');
+        const cols  = modoUnico ? 8 : 11;
+        tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center;padding:32px;color:#aaa">
+            <i class="material-symbols-outlined" style="vertical-align:middle">hourglass_empty</i> Cargando…
+        </td></tr>`;
+
+        const qs = new URLSearchParams(params).toString();
+        try {
+            const res  = await fetch(`/api/reportes/personal/funcionarios/${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (data.error) {
+                tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center;padding:28px;color:#c00">${data.error}</td></tr>`;
+                return;
+            }
+            todosFuncionarios = data.funcionarios;
+            datosFiltrados    = [...todosFuncionarios];
+
+            // Determinar años de gestión desde los datos reales
+            GESTIONES = determinarAniosGestiones(todosFuncionarios);
+            actualizarCabeceras();
+            renderTabla(datosFiltrados);
+        } catch (e) {
+            console.error('Error cargando funcionarios:', e);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // DETERMINAR AÑOS DE GESTIÓN
+    // ══════════════════════════════════════════════
+    function determinarAniosGestiones(funcionarios) {
+        const anios = [null, null, null, null];
+        for (const f of funcionarios) {
+            f.gestiones.forEach((g, i) => {
+                if (g.anio !== null && anios[i] === null) anios[i] = g.anio;
+            });
+            if (anios.every(a => a !== null)) break;
+        }
+        const base = new Date().getFullYear();
+        return anios.map((a, i) => a !== null ? a : (base - 3 + i));
+    }
+
+    function actualizarCabeceras() {
+        ['thG1','thG2','thG3','thG4'].forEach((id, i) => {
+            const th = document.getElementById(id);
+            th.textContent   = GESTIONES[i];
+            th.style.display = '';
+        });
+        thColspan.setAttribute('colspan', '4');
+    }
+
+    // ══════════════════════════════════════════════
+    // RENDERIZAR TABLA
+    // ══════════════════════════════════════════════
+    function renderTabla(datos) {
+        const tbody = document.getElementById('tablaBody');
+        tbody.innerHTML = '';
+
+        document.getElementById('totalFuncionarios').textContent =
+            `${datos.length} funcionario${datos.length !== 1 ? 's' : ''}`;
+
+        const gestActivas = (modoUnico && gestionUnica !== null) ? [gestionUnica] : GESTIONES;
+        const numCols     = 6 + gestActivas.length + 1;
+
+        if (datos.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${numCols}" style="text-align:center;padding:32px;color:#aaa">
+                No se encontraron funcionarios con los criterios seleccionados.
+            </td></tr>`;
+            return;
+        }
+
+        datos.forEach((f, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="td-num">${idx + 1}</td>
+                <td>${esc(f.apellidos_nombres)}</td>
+                <td>${esc(f.cargo)}</td>
+                <td>${f.fecha_ingreso}</td>
+                <td><span class="badge-contrato">${esc(f.tipo_contrato)}</span></td>
+                <td><span class="badge-area">${esc(f.unidad)}</span></td>
+                ${gestActivas.map(anio => celdaG(f, anio)).join('')}
+                <td><span class="dias-total">${fmt(calcTotalDias(f))}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function celdaG(f, anio) {
+        const g    = f.gestiones.find(g => g.anio === anio);
+        const dias = g ? g.dias : 0;
+        if (dias > 0) return `<td><span class="dias-val">${fmt(dias)}</span></td>`;
+        return `<td><span class="sin-dias">—</span></td>`;
+    }
+
+    function calcTotalDias(f) {
+        if (modoUnico && gestionUnica !== null) {
+            const g = f.gestiones.find(g => g.anio === gestionUnica);
+            return g ? g.dias : 0;
+        }
+        return f.dias_adeudados;
+    }
+
+    // ══════════════════════════════════════════════
+    // MODO GESTIÓN ÚNICA — TOGGLE
+    // ══════════════════════════════════════════════
     toggleChk.addEventListener('change', () => {
         modoUnico = toggleChk.checked;
         grupoUnico.style.display = modoUnico ? '' : 'none';
-        document.getElementById('grupoAnioRef').style.display = modoUnico ? 'none' : '';
 
         if (!modoUnico) {
-            // Volver a modo 4 gestiones
             gestionUnica = null;
             inputAnioUnico.value = '';
-            actualizarModo();
+            actualizarCabeceras();
+            renderTabla(datosFiltrados);
         } else {
-            // Si ya hay un año escrito en único, aplicarlo
             const val = parseInt(inputAnioUnico.value);
             if (val >= 2000 && val <= 2099) {
-                gestionUnica = String(val);
-                actualizarModo();
+                gestionUnica = val;
+                aplicarModoUnico();
             }
         }
     });
@@ -133,347 +198,176 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = parseInt(inputAnioUnico.value);
         if (!val || val < 2000 || val > 2099) {
             inputAnioUnico.style.borderColor = 'red';
-            setTimeout(() => inputAnioUnico.style.borderColor = '', 1500);
+            setTimeout(() => (inputAnioUnico.style.borderColor = ''), 1500);
             return;
         }
-        gestionUnica = String(val);
-        actualizarModo();
+        gestionUnica = val;
+        aplicarModoUnico();
     });
 
     inputAnioUnico.addEventListener('keypress', e => {
         if (e.key === 'Enter') document.getElementById('btnAnioUnico').click();
     });
 
-    function actualizarModo() {
-        if (modoUnico && gestionUnica) {
-            // 1 sola columna
-            thColspan.setAttribute('colspan', '1');
-            document.getElementById('thG1').textContent = gestionUnica;
-            document.getElementById('thG2').style.display = 'none';
-            document.getElementById('thG3').style.display = 'none';
-            document.getElementById('thG4').style.display = 'none';
-        } else {
-            // 4 columnas normales
-            thColspan.setAttribute('colspan', '4');
-            ['thG2','thG3','thG4'].forEach(id => document.getElementById(id).style.display = '');
-            actualizarCabecerasGestiones();
-        }
+    function aplicarModoUnico() {
+        thColspan.setAttribute('colspan', '1');
+        document.getElementById('thG1').textContent = gestionUnica;
+        ['thG2','thG3','thG4'].forEach(id => (document.getElementById(id).style.display = 'none'));
         renderTabla(datosFiltrados);
     }
-
-
-    function renderTabla(datos) {
-        const tbody = document.getElementById('tablaBody');
-        tbody.innerHTML = '';
-
-        document.getElementById('totalFuncionarios').textContent =
-            `${datos.length} funcionario${datos.length !== 1 ? 's' : ''}`;
-
-        const gestActivas = (modoUnico && gestionUnica) ? [gestionUnica] : GESTIONES;
-
-        if (datos.length === 0) {
-            const cols = 5 + gestActivas.length + 1;
-            tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center;padding:28px;color:#aaa">
-                No se encontraron funcionarios con los criterios seleccionados.
-            </td></tr>`;
-            return;
-        }
-
-        datos.forEach(f => {
-            const tr = document.createElement('tr');
-
-            const celdaG = (g) => {
-                const d = f.gestiones[g] || 0;
-                return d > 0
-                    ? `<td><span class="dias-val">${d}</span></td>`
-                    : `<td><span class="sin-dias">—</span></td>`;
-            };
-
-            const diasMostrados = gestActivas.reduce((a, g) => a + (f.gestiones[g] || 0), 0);
-
-            tr.innerHTML = `
-                <td>${f.nombre}</td>
-                <td>${f.cargo}</td>
-                <td>${f.fechaIngreso}</td>
-                <td><span class="badge-contrato">${f.tipoContrato}</span></td>
-                <td><span class="badge-area">${f.area}</span></td>
-                ${gestActivas.map(g => celdaG(g)).join('')}
-                <td><span class="dias-total">${diasMostrados}</span></td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    renderTabla(funcionarios);
 
     // ══════════════════════════════════════════════
     // FILTROS
     // ══════════════════════════════════════════════
     function aplicarFiltros() {
-        const contrato = document.getElementById('tipoContrato').value;
-        const area     = document.getElementById('area').value;
-        const nombre   = document.getElementById('funcionario').value.toLowerCase().trim();
+        filtroContrato     = document.getElementById('tipoContrato').value;
+        filtroUnidad       = document.getElementById('unidadOrg').value;
+        const selU         = document.getElementById('unidadOrg');
+        filtroUnidadNombre = filtroUnidad
+            ? selU.options[selU.selectedIndex].text
+            : '';
 
-        datosFiltrados = funcionarios.filter(f => {
-            const okContrato = !contrato || f.tipoContrato === contrato;
-            const okArea     = !area     || f.area === area;
-            const okNombre   = !nombre   || f.nombre.toLowerCase().includes(nombre);
-            return okContrato && okArea && okNombre;
-        });
+        const params = {};
+        if (filtroContrato) params.tipo_contrato = filtroContrato;
+        if (filtroUnidad)   params.unidad        = filtroUnidad;
 
-        renderTabla(datosFiltrados);
+        cargarFuncionarios(params);
     }
 
     document.getElementById('btnBuscar').addEventListener('click', aplicarFiltros);
-    document.getElementById('funcionario').addEventListener('keypress', e => {
-        if (e.key === 'Enter') aplicarFiltros();
-    });
+
     document.getElementById('btnLimpiar').addEventListener('click', () => {
         document.getElementById('tipoContrato').value = '';
-        document.getElementById('area').value = '';
-        document.getElementById('funcionario').value = '';
-        document.getElementById('anioRef').value = '';
+        document.getElementById('unidadOrg').value    = '';
+        filtroContrato     = '';
+        filtroUnidad       = '';
+        filtroUnidadNombre = '';
+
         // Resetear modo único
-        modoUnico = false;
+        modoUnico    = false;
         gestionUnica = null;
-        toggleChk.checked = false;
+        toggleChk.checked    = false;
         grupoUnico.style.display = 'none';
         inputAnioUnico.value = '';
-        document.getElementById('grupoAnioRef').style.display = '';
-        thColspan.setAttribute('colspan', '4');
-        ['thG2','thG3','thG4'].forEach(id => document.getElementById(id).style.display = '');
-        // Resetear gestiones
-        GESTIONES = calcularGestiones(defaultYear);
-        actualizarCabecerasGestiones();
-        datosFiltrados = [...funcionarios];
-        renderTabla(datosFiltrados);
+
+        cargarFuncionarios();
     });
 
     // ══════════════════════════════════════════════
     // EXPORTAR PDF GENERAL
     // ══════════════════════════════════════════════
     document.getElementById('btnExportarPDF').addEventListener('click', () => {
+        if (datosFiltrados.length === 0) return;
         generarPDFGeneral(datosFiltrados);
     });
 
     function generarPDFGeneral(datos) {
-        if (datos.length === 0) return;
-
-        const hoy = new Date();
+        const hoy      = new Date();
         const fechaStr = `Trinidad, ${hoy.getDate()} de ${nombreMes(hoy.getMonth())} de ${hoy.getFullYear()}`;
 
-        const gestActivas = (modoUnico && gestionUnica) ? [gestionUnica] : GESTIONES;
+        const gestActivas = (modoUnico && gestionUnica !== null) ? [gestionUnica] : GESTIONES;
 
-        // Cabeceras de gestión
-        const thsGest = gestActivas.map(g => `<th>Gestión<br>${g}</th>`).join('');
+        // Cabeceras gestión (1 o 2 filas)
+        const esMultiple = gestActivas.length > 1;
+        const thsGestRow1 = esMultiple
+            ? `<th colspan="${gestActivas.length}" style="border-bottom:1px solid rgba(255,255,255,.2);font-size:8px;letter-spacing:.4px">DÍAS PENDIENTES POR GESTIÓN</th>`
+            : `<th rowspan="2">GESTIÓN<br>${gestionUnica}</th>`;
+        const thsGestRow2 = esMultiple
+            ? gestActivas.map(g => `<th>GESTIÓN<br>${g}</th>`).join('')
+            : '';
 
-        // Filas de la tabla
+        // Filtros activos para el encabezado del PDF
+        const filtrosPartes = [];
+        if (filtroContrato)     filtrosPartes.push(`Tipo Contrato: ${filtroContrato}`);
+        if (filtroUnidadNombre) filtrosPartes.push(`Área: ${filtroUnidadNombre}`);
+        if (modoUnico && gestionUnica !== null) filtrosPartes.push(`Gestión: ${gestionUnica}`);
+        const filtrosLabel = filtrosPartes.join(' — ');
+
+        // Filas de datos
         const filas = datos.map((f, idx) => {
-            const tdsGest = gestActivas.map(g => {
-                const d = f.gestiones[g] || 0;
-                return d > 0
-                    ? `<td class="td-dias">${d}</td>`
+            const tdsGest = gestActivas.map(anio => {
+                const g    = f.gestiones.find(g => g.anio === anio);
+                const dias = g ? g.dias : 0;
+                return dias > 0
+                    ? `<td class="td-dias">${fmt(dias)}</td>`
                     : `<td style="color:#bbb">—</td>`;
             }).join('');
 
-            const diasMostrados = gestActivas.reduce((a, g) => a + (f.gestiones[g] || 0), 0);
-
-            return `
-                <tr>
-                    <td class="td-num">${idx + 1}</td>
-                    <td class="td-nombre">${f.nombre}</td>
-                    <td>${f.cargo}</td>
-                    <td>${f.fechaIngreso}</td>
-                    <td>${f.tipoContrato}</td>
-                    <td>${f.area}</td>
-                    ${tdsGest}
-                    <td class="td-total">${diasMostrados}</td>
-                </tr>`;
+            return `<tr>
+                <td class="td-num">${idx + 1}</td>
+                <td class="td-nombre">${esc(f.apellidos_nombres)}</td>
+                <td>${esc(f.cargo)}</td>
+                <td>${f.fecha_ingreso}</td>
+                <td>${esc(f.tipo_contrato)}</td>
+                <td>${esc(f.unidad)}</td>
+                ${tdsGest}
+                <td class="td-total">${fmt(calcTotalDias(f))}</td>
+            </tr>`;
         }).join('');
 
         const htmlPDF = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
+<html lang="es"><head><meta charset="UTF-8">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-        font-family:'Montserrat',Arial,sans-serif;
-        padding: 30px 36px;
-        font-size: 9px;
-        color: #1a1a1a;
-    }
-
-    /* Encabezado institucional */
-    .inst-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 20px;
-        padding-bottom: 12px;
-        border-bottom: 2px solid rgb(39,20,71);
-    }
-    .inst-nombre {
-        font-size: 11px;
-        font-weight: 700;
-        color: rgb(39,20,71);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        line-height: 1.5;
-    }
-    .inst-fecha {
-        font-size: 9.5px;
-        color: #555;
-        text-align: right;
-        line-height: 1.6;
-    }
-
-    /* Título */
-    .planilla-titulo {
-        text-align: center;
-        margin-bottom: 18px;
-    }
-    .planilla-titulo h2 {
-        background: rgb(39,20,71);
-        color: #fff;
-        display: inline-block;
-        padding: 8px 28px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        border-radius: 4px;
-    }
-
-    /* Resumen */
-    .resumen {
-        display: flex;
-        gap: 20px;
-        margin-bottom: 16px;
-    }
-    .resumen-item {
-        background: #f8f5fb;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 7px 14px;
-        font-size: 9px;
-    }
-    .resumen-item span { font-weight: 700; color: rgb(39,20,71); }
-
-    /* Tabla general */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 8.5px;
-        margin-bottom: 20px;
-    }
-    thead tr th {
-        background: rgb(39,20,71);
-        color: #fff;
-        padding: 7px 6px;
-        text-align: center;
-        font-weight: 700;
-        font-size: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        border: 1px solid #55366a;
-        line-height: 1.4;
-    }
-    tbody td {
-        padding: 7px 6px;
-        border: 1px solid #ddd;
-        text-align: center;
-        vertical-align: middle;
-    }
-    tbody tr:nth-child(even) td { background: #fdf5f8; }
-    .td-num    { color: #888; font-size: 8px; }
-    .td-nombre { text-align: left; font-weight: 700; color: rgb(39,20,71); padding-left: 8px; }
-    .td-dias   { font-weight: 700; color: rgb(39,20,71); }
-    .td-total  { font-weight: 700; color: rgb(114,0,53); font-size: 10px; background: #f8f5fb; }
-
-
-    /* Pie */
-    .nota {
-        font-size: 8.5px;
-        color: #666;
-        font-style: italic;
-        border-left: 3px solid rgb(114,0,53);
-        padding-left: 10px;
-        margin-bottom: 30px;
-        line-height: 1.6;
-    }
-    .firma-rrhh {
-        margin-top: 30px;
-        width: 220px;
-        text-align: center;
-    }
-    .firma-linea {
-        border-top: 1.5px solid #333;
-        margin-bottom: 6px;
-    }
-    .firma-nombre {
-        font-weight: 700;
-        font-size: 9px;
-        text-transform: uppercase;
-        color: rgb(39,20,71);
-        letter-spacing: 0.3px;
-    }
-    .firma-cargo { font-size: 8px; color: #666; margin-top: 2px; }
-
-    @media print { body { padding: 20px 28px; } }
-</style>
-</head>
-<body>
-
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Montserrat',Arial,sans-serif;padding:28px 36px;font-size:9px;color:#1a1a1a;}
+    .inst-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid rgb(39,20,71);}
+    .inst-nombre{font-size:11px;font-weight:700;color:rgb(39,20,71);text-transform:uppercase;letter-spacing:.5px;line-height:1.5;}
+    .inst-fecha{font-size:9px;color:#555;text-align:right;line-height:1.6;}
+    .titulo{text-align:center;margin-bottom:14px;}
+    .titulo h2{background:rgb(39,20,71);color:#fff;display:inline-block;padding:7px 26px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:4px;}
+    .resumen{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;font-size:9px;}
+    .resumen-total{font-weight:700;color:rgb(39,20,71);}
+    .resumen-sep{color:#bbb;}
+    .resumen-filtro{color:rgb(114,0,53);font-weight:600;}
+    table{width:100%;border-collapse:collapse;font-size:8px;margin-bottom:18px;}
+    thead th{background:rgb(39,20,71);color:#fff;padding:6px 5px;text-align:center;font-weight:700;font-size:7.5px;text-transform:uppercase;letter-spacing:.3px;border:1px solid #55366a;line-height:1.4;}
+    tbody td{padding:6px 5px;border:1px solid #ddd;text-align:center;vertical-align:middle;}
+    tbody tr:nth-child(even) td{background:#fdf5f8;}
+    .td-num{color:#888;font-size:7.5px;width:24px;}
+    .td-nombre{text-align:left!important;font-weight:700;color:rgb(39,20,71);padding-left:7px!important;}
+    .td-dias{font-weight:700;color:rgb(39,20,71);}
+    .td-total{font-weight:700;color:rgb(114,0,53);font-size:9.5px;background:#f8f5fb;}
+    .firma-rrhh{margin-top:28px;width:220px;text-align:center;}
+    .firma-linea{border-top:1.5px solid #333;margin-bottom:6px;}
+    .firma-nombre{font-weight:700;font-size:9px;text-transform:uppercase;color:rgb(39,20,71);letter-spacing:.3px;}
+    .firma-rol{font-size:8px;color:rgb(114,0,53);font-weight:600;text-transform:uppercase;margin-top:2px;}
+    @media print{body{padding:16px 24px;}}
+</style></head><body>
     <div class="inst-header">
-        <div class="inst-nombre">
-            Servicio Departamental de Salud<br>
-            <span style="font-weight:400;font-size:10px;color:#555">Recursos Humanos</span>
+        <div class="inst-nombre">SEGURO SOCIAL UNIVERSITARIO<br>
+            <span style="font-weight:400;font-size:10px;color:#555">${areaLabel}</span>
         </div>
         <div class="inst-fecha">${fechaStr}</div>
     </div>
-
-    <div class="planilla-titulo">
-        <h2>Reporte General de Vacaciones — SSU</h2>
-    </div>
-
+    <div class="titulo"><h2>REPORTE GENERAL</h2></div>
     <div class="resumen">
-        <div class="resumen-item">Total funcionarios: <span>${datos.length}</span></div>
-        <div class="resumen-item">Gestión${gestActivas.length > 1 ? 'es' : ''}: <span>${gestActivas.join(' · ')}</span></div>
-        <div class="resumen-item">Total días disponibles: <span>${datos.reduce((a,f) => a + gestActivas.reduce((b,g) => b + (f.gestiones[g]||0), 0), 0)}</span></div>
+        <span class="resumen-total">Total funcionarios: ${datos.length}</span>
+        ${filtrosLabel ? `<span class="resumen-sep">|</span><span class="resumen-filtro">${filtrosLabel}</span>` : ''}
     </div>
-
     <table>
         <thead>
             <tr>
-                <th>#</th>
-                <th>Apellidos y Nombres</th>
-                <th>Cargo</th>
-                <th>Fecha Ingreso</th>
-                <th>Contrato</th>
-                <th>Área</th>
-                ${thsGest}
-                <th>Total<br>Días</th>
+                <th rowspan="2">Nº</th>
+                <th rowspan="2">Apellidos y Nombres</th>
+                <th rowspan="2">Cargo</th>
+                <th rowspan="2">Fecha Ingreso</th>
+                <th rowspan="2">Contrato</th>
+                <th rowspan="2">Unidad Org.</th>
+                ${thsGestRow1}
+                <th rowspan="2">Total Días</th>
             </tr>
+            ${thsGestRow2 ? `<tr>${thsGestRow2}</tr>` : ''}
         </thead>
-        <tbody>
-            ${filas}
-        </tbody>
+        <tbody>${filas}</tbody>
     </table>
-
-    <p class="nota">
-        Los funcionarios firman la presente planilla estando de acuerdo con el cálculo de vacaciones realizado hasta la fecha indicada.
-    </p>
-
     <div class="firma-rrhh">
         <div class="firma-linea"></div>
-        <div class="firma-nombre">Encargada de RR.HH.</div>
+        <div class="firma-nombre">${nombreRRHH || 'Encargada de RR.HH.'}</div>
+        <div class="firma-rol">ENCARGADA DE RR.HH</div>
     </div>
-
-    <script>window.onload = () => window.print();<\/script>
-</body>
-</html>`;
+    <script>window.onload=()=>window.print();<\/script>
+</body></html>`;
 
         const ventana = window.open('', '_blank');
         ventana.document.write(htmlPDF);
@@ -481,10 +375,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ══════════════════════════════════════════════
-    // UTILIDAD: nombre de mes
+    // UTILIDADES
     // ══════════════════════════════════════════════
+    function fmt(n) {
+        return n % 1 === 0 ? String(n) : n.toFixed(1);
+    }
+
+    function esc(s) {
+        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
     function nombreMes(n) {
         return ['enero','febrero','marzo','abril','mayo','junio',
                 'julio','agosto','septiembre','octubre','noviembre','diciembre'][n];
     }
+
+    init();
 });

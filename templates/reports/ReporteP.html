@@ -1,138 +1,194 @@
-﻿{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte Personal de Vacaciones</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Reporte Personal — SSU</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/reports/ReporteP.css' %}">
+    <link rel="stylesheet" href="{% static 'css/shared/profile-switcher.css' %}">
+    <link rel="stylesheet" href="{% static 'css/reports/ReporteP.css' %}">
     <link rel="stylesheet" href="{% static 'css/shared/notifications.css' %}">
 </head>
 <body>
-<a href="/Index_Principal.html" class="back-to-menu">
-    <i class="material-symbols-outlined">arrow_back</i>
-    Volver
-</a>
-    <div class="main-container">
-        <!-- HEADER -->
+
+<div class="main-container">
+
+    <!-- HEADER -->
+    <div class="header-wrapper">
         <header class="module-header">
-            <h1 class="module-title">
-                <i class="material-symbols-outlined">description</i>
-                Reporte Personal
-            </h1>
+            <i class="material-symbols-outlined">description</i>
+            <div>
+                <h1 class="module-title">Reporte Personal</h1>
+                <p class="module-subtitle">Acta de vacaciones e historial de solicitudes por funcionario</p>
+            </div>
         </header>
-
-        <!-- FILTROS -->
-        <div class="filters-container">
-            <div class="filter-group">
-                <label for="tipoContrato">Tipo Contrato</label>
-                <div class="select-wrapper">
-                    <select id="tipoContrato">
-                        <option value="">Todos</option>
-                        <option value="Item">Ítem</option>
-                        <option value="Indefinido">Contrato Indefinido</option>
-                    </select>
-                </div>
-            </div>
-            <div class="filter-group">
-                <label for="area">Área</label>
-                <div class="select-wrapper">
-                    <select id="area">
-                        <option value="">Todas</option>
-                        <option value="Salud">Salud</option>
-                        <option value="Administrativa">Administrativa</option>
-                    </select>
-                </div>
-            </div>
-            <div class="filter-group">
-                <label for="anioRef">Año de referencia</label>
-                <div class="input-action-wrapper">
-                    <div class="input-wrapper">
-                        <input type="number" id="anioRef" placeholder="Ej: 2022" min="2000" max="2099">
+        <div class="header-actions">
+            <a href="/Index_Principal.html" class="back-to-menu">
+                <i class="material-symbols-outlined">arrow_back</i>
+                Volver
+            </a>
+            <div class="profile-switcher-container">
+                <button class="btn-profile-trigger" id="btnProfile">
+                    <i class="material-symbols-outlined">account_circle</i>
+                    <span id="currentProfileText">—</span>
+                    <i class="material-symbols-outlined">expand_more</i>
+                </button>
+                <div class="profile-panel" id="profilePanel">
+                    <div class="profile-info">
+                        <i class="material-symbols-outlined profile-icon">account_circle</i>
+                        <div class="profile-text">
+                            <span class="profile-name" id="profileNamePanel">—</span>
+                            <span class="profile-role" id="currentRolePanel">—</span>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" id="btnAnio" title="Aplicar año">
-                        <i class="material-symbols-outlined">event_available</i>
-                    </button>
+                    <ul class="role-list" id="roleList"></ul>
                 </div>
-            </div>
-            <div class="filter-group wide">
-                <label for="funcionario">Buscar Funcionario</label>
-                <div class="input-action-wrapper">
-                    <div class="input-wrapper">
-                        <input type="text" id="funcionario" placeholder="Buscar por nombre...">
-                    </div>
-                    <button class="btn btn-primary" id="btnBuscar">
-                        <i class="material-symbols-outlined">search</i> BUSCAR
-                    </button>
-                    <button class="btn btn-secondary" id="btnLimpiar" title="Limpiar filtros">
-                        <i class="material-symbols-outlined">refresh</i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- TABLA PRINCIPAL -->
-        <div class="table-card">
-            <div class="table-card-header">
-                <div class="card-title-block">
-                    <h2 class="card-title">Vacación Personal SSU</h2>
-                    <span class="card-subtitle" id="totalFuncionarios">0 funcionarios</span>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-                <table id="tablaReporte">
-                    <thead>
-                        <tr>
-                            <th rowspan="2" class="th-fixed">Apellidos y Nombres</th>
-                            <th rowspan="2" class="th-fixed">Cargo</th>
-                            <th rowspan="2" class="th-fixed">Fecha<br>Ingreso</th>
-                            <th colspan="4" class="th-group-label">Días Pendientes por Gestión</th>
-                            <th rowspan="2" class="th-fixed">Días<br>Disponibles</th>
-                            <th rowspan="2" class="th-fixed">Planilla</th>
-                        </tr>
-                        <tr>
-                            <th id="thG1" class="th-gestion">—</th>
-                            <th id="thG2" class="th-gestion">—</th>
-                            <th id="thG3" class="th-gestion">—</th>
-                            <th id="thG4" class="th-gestion">—</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaBody"></tbody>
-                </table>
             </div>
         </div>
     </div>
 
-    <!-- MODAL HISTORIAL COMPLETO -->
-    <div id="modalHistorial" class="modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <div>
-                    <h3 id="historialTitle">Historial de Vacaciones</h3>
-                    <p class="modal-subtitle" id="historialFuncionario">—</p>
+    <!-- FILTROS -->
+    <div class="filters-container">
+        <div class="filter-group">
+            <label for="unidadOrg">Unidad Organizacional</label>
+            <div class="select-wrapper">
+                <select id="unidadOrg">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+        </div>
+        <div class="filter-group">
+            <label for="tipoContrato">Tipo de Contrato</label>
+            <div class="select-wrapper">
+                <select id="tipoContrato">
+                    <option value="">Todos</option>
+                    <option value="Item">Ítem</option>
+                    <option value="Indefinido">Contrato Indefinido</option>
+                </select>
+            </div>
+        </div>
+        <div class="filter-group wide">
+            <label for="funcionario">Buscar Funcionario</label>
+            <div class="input-action-wrapper">
+                <div class="input-wrapper">
+                    <input type="text" id="funcionario" placeholder="Buscar por nombre...">
                 </div>
-                <button class="close-modal" id="closeHistorial"><i class="material-symbols-outlined">close</i></button>
-            </div>
-            <div class="modal-body">
-                <div id="historialContenido"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-download" id="btnDescargarHistorial">
-                    <i class="material-symbols-outlined">picture_as_pdf</i> Descargar PDF
+                <button class="btn btn-primary" id="btnBuscar">
+                    <i class="material-symbols-outlined">search</i> BUSCAR
+                </button>
+                <button class="btn btn-secondary" id="btnLimpiar" title="Limpiar filtros">
+                    <i class="material-symbols-outlined">refresh</i>
                 </button>
             </div>
         </div>
     </div>
 
-    <script src="{% static 'js/reports/ReporteP.js' %}"></script>
-    <script src="{% static 'js/shared/notifications.js' %}"></script>
+    <!-- TABLA PRINCIPAL -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <div class="card-title-block">
+                <h2 class="card-title">Vacación Personal SSU</h2>
+                <span class="card-subtitle" id="totalFuncionarios">0 funcionarios</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="tablaReporte">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="th-fixed">Nombre Completo</th>
+                        <th rowspan="2" class="th-fixed">Cargo</th>
+                        <th rowspan="2" class="th-fixed">Fecha<br>Ingreso</th>
+                        <th colspan="4" class="th-group-label">Días Pendientes por Gestión</th>
+                        <th rowspan="2" class="th-fixed">Vac.<br>Negadas</th>
+                        <th rowspan="2" class="th-fixed">Adeudado</th>
+                        <th rowspan="2" class="th-fixed">Acciones</th>
+                    </tr>
+                    <tr>
+                        <th class="th-gestion">G1</th>
+                        <th class="th-gestion">G2</th>
+                        <th class="th-gestion">G3</th>
+                        <th class="th-gestion">G4</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaBody">
+                    <tr>
+                        <td colspan="10" style="text-align:center;padding:32px;color:#aaa">
+                            Cargando funcionarios…
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL -->
+<div id="modalHistorial" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <h3>Historial de Solicitudes</h3>
+                <div class="modal-datos-func">
+                    <div class="mdf-item">
+                        <span class="mdf-label">Funcionario:</span>
+                        <span id="histModalNombre">—</span>
+                    </div>
+                    <div class="mdf-item">
+                        <span class="mdf-label">Cargo:</span>
+                        <span id="histModalCargo">—</span>
+                    </div>
+                    <div class="mdf-item">
+                        <span class="mdf-label">Ingreso:</span>
+                        <span id="histModalIngreso">—</span>
+                    </div>
+                    <div class="mdf-item">
+                        <span class="mdf-label">Días disponibles:</span>
+                        <span id="histModalSaldo" class="mdf-saldo">—</span>
+                    </div>
+                </div>
+                <div class="rango-anios">
+                    <div class="rango-item">
+                        <label for="anioDesde">Desde</label>
+                        <div class="input-wrapper input-anio">
+                            <input type="number" id="anioDesde" placeholder="Ej: 2022" min="2000" max="2099">
+                        </div>
+                    </div>
+                    <span class="rango-separador">—</span>
+                    <div class="rango-item">
+                        <label for="anioHasta">Hasta</label>
+                        <div class="input-wrapper input-anio">
+                            <input type="number" id="anioHasta" placeholder="Ej: 2026" min="2000" max="2099">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-rango" id="btnAplicarRango" title="Aplicar rango">
+                        <i class="material-symbols-outlined">filter_alt</i> Filtrar
+                    </button>
+                    <button class="btn btn-secondary btn-rango" id="btnLimpiarRango" title="Ver todo">
+                        <i class="material-symbols-outlined">refresh</i>
+                    </button>
+                </div>
+            </div>
+            <button class="close-modal" id="closeHistorial">
+                <i class="material-symbols-outlined">close</i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="historialContenido"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-download" id="btnDescargarHistorial">
+                <i class="material-symbols-outlined">picture_as_pdf</i> Descargar PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/reports/ReporteP.js' %}?v=3"></script>
+<script src="{% static 'js/shared/profile-switcher.js' %}"></script>
+<script src="{% static 'js/shared/notifications.js' %}"></script>
 </body>
 </html>
-
-
-
-
-

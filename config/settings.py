@@ -12,8 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
 # Quick-start development settings - unsuitable for production
@@ -55,6 +56,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Control de acceso basado en roles — debe ir después de AuthenticationMiddleware
+    'core.middleware.ControlAccesoRoles',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -70,6 +73,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.foto_perfil',
+                'accounts.context_processors.permisos_usuario',
             ],
         },
     },
@@ -131,3 +135,33 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static'
 ]
+
+# Logging — accesos denegados por rol
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'ssu': {
+            'format': '{asctime} {levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'acceso_denegado_file': {
+            'class':     'logging.FileHandler',
+            'filename':  BASE_DIR / 'logs' / 'acceso_denegado.log',
+            'formatter': 'ssu',
+            'encoding':  'utf-8',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'ssu.acceso_denegado': {
+            'handlers':  ['acceso_denegado_file', 'console'],
+            'level':     'WARNING',
+            'propagate': False,
+        },
+    },
+}

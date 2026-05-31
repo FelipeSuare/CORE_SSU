@@ -27,10 +27,24 @@ const formPanel   = document.getElementById('formPanel');
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
     cargarTabla();
+    cargarPerfil();
     document.getElementById('searchInput').addEventListener('keyup', e => {
         if (e.key === 'Enter') filtrarTabla();
     });
 });
+
+async function cargarPerfil() {
+    try {
+        const resp = await fetch('/api/usuario/mi-perfil/');
+        const data = await resp.json();
+        if (!data.error) {
+            window.initProfileSwitcher?.({ roles: data.roles, nombre: data.nombre_completo });
+            window.setupProfileToggle?.();
+        }
+    } catch (e) {
+        console.error('Error cargando perfil:', e);
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  Tabla

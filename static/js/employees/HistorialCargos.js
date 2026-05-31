@@ -89,6 +89,7 @@ let cargosDelFuncionario    = [];
 // INIT
 // ══════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", () => {
+    cargarPerfil();
     document.addEventListener("click", e => {
         if (!e.target.closest(".search-box")) {
             document.getElementById("sugerenciasDropdown").style.display = "none";
@@ -98,6 +99,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.key === "Enter") buscarFuncionarioManual();
     });
 });
+
+async function cargarPerfil() {
+    try {
+        const resp = await fetch('/api/usuario/mi-perfil/');
+        const data = await resp.json();
+        if (!data.error) {
+            window.initProfileSwitcher?.({ roles: data.roles, nombre: data.nombre_completo });
+            window.setupProfileToggle?.();
+        }
+    } catch (e) {
+        console.error('Error cargando perfil:', e);
+    }
+}
 
 // ══════════════════════════════════════════════
 // AUTOCOMPLETE

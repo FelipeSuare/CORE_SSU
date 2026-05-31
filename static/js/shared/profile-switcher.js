@@ -15,7 +15,7 @@ window.ROLE_DESTINATIONS = {
     'Funcionario':            '/Vacaciones.html',
     'Administrador':          '/Aprobacion.html',
     'RRHH':                   '/Anulacion.html',
-    'Auditoría':              null,
+    'Auditoria':              '/ReporteP.html',
     'Jefe de Area':           '/Aprobacion.html',
     'Gerente Administrativo': '/Aprobacion.html',
     'Gerente de Salud':       '/Aprobacion.html',
@@ -27,7 +27,7 @@ window.ROLE_ICONS = {
     'Funcionario':            'person',
     'Administrador':          'settings',
     'RRHH':                   'groups',
-    'Auditoría':              'manage_search',
+    'Auditoria':              'manage_search',
     'Jefe de Area':           'school',
     'Gerente Administrativo': 'work',
     'Gerente de Salud':       'favorite',
@@ -42,6 +42,10 @@ const _MODULO_ROLES = {
     '/Anulacion.html':     ['RRHH', 'Administrador'],
     '/FormularioVac.html': ['Administrador', 'RRHH', 'Funcionario'],
     '/Feriados.html':      ['Administrador', 'RRHH'],
+    '/ReporteP.html':        ['RRHH', 'Auditoria', 'Administrador'],
+    '/ReporteG.html':        ['RRHH', 'Auditoria', 'Administrador'],
+    '/Funcionarios.html':    ['RRHH', 'Administrador'],
+    '/HistorialCargos.html': ['RRHH', 'Administrador'],
 };
 
 /**

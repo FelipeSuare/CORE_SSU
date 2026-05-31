@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSU - Gestión de Vacaciones</title>
+    <style>:root{--color-pink-light:#F9c9c9;}body{background:#F9c9c9;margin:0;}</style>
     <link rel="stylesheet" href="{% static 'css/dashboard/Index_Principal.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
@@ -30,7 +31,7 @@
             </div>
             <div class="user-info">
                 <h3 class="user-name">{{ user.first_name }} {{ user.last_name }}</h3>
-                <p class="user-role">{% if user.is_superuser %}Administrador{% else %}Funcionario{% endif %}</p>
+                <p class="user-role">{{ rol_principal }}</p>
             </div>
         </div>
 

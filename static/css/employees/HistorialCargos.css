@@ -42,36 +42,65 @@ body {
 
 .main-container { max-width: 1100px; margin: 0 auto; }
 .back-to-menu {
-    position: fixed;
-    top: 10px;
-    right: 10px;
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
     background: var(--vino);
     color: var(--white);
     padding: 10px 15px;
     text-decoration: none;
     border-radius: 25px;
-    font-family: sans-serif;
-    /* z-index: 9999; */
+    font-family: 'Montserrat', sans-serif;
     box-shadow: 0 4px 6px var(--shadow-heavy);
     font-weight: bold;
+    white-space: nowrap;
     transition: transform 0.3s, box-shadow 0.3s;
-    margin-right: 83px;
-    margin-top: 20px;
 }
-
 .back-to-menu:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(0,0,0,.25);
 }
 
 /* ══════════════════════════════════════════
-   HEADER DEL MÓDULO — ícono limpio sin recuadro
+   HEADER WRAPPER CON PROFILE SWITCHER
 ══════════════════════════════════════════ */
-.module-header { margin-bottom: 24px; }
+.hist-header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.hist-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════
+   HEADER DEL MÓDULO
+══════════════════════════════════════════ */
+.module-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 0;
+}
+
+.module-header > i {
+    font-size: 2em;
+    color: var(--purple);
+}
+
+.module-subtitle {
+    color: var(--vino);
+    font-size: 0.82em;
+    margin-top: 2px;
+    opacity: 0.85;
+}
 
 .module-title {
     font-size: 1.75em;
