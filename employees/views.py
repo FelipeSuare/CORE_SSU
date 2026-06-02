@@ -513,7 +513,7 @@ def exportar_funcionarios(request):
 
 
 # ──────────────────────────────────────────────────────────────
-#  Autocompletado de funcionarios (para Historial de Cargos)
+#  Autocompletado de funcionarios
 # ──────────────────────────────────────────────────────────────
 
 @login_required(login_url='login_home')
@@ -529,7 +529,8 @@ def buscar_funcionarios(request):
         .filter(
             Q(ci__nombre__icontains=q) |
             Q(ci__ap_paterno__icontains=q) |
-            Q(ci__ap_materno__icontains=q)
+            Q(ci__ap_materno__icontains=q) |
+            Q(ci__ci__icontains=q)
         )
         .order_by('ci__ap_paterno', 'ci__nombre')[:10]
     )

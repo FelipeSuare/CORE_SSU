@@ -67,5 +67,12 @@ def _auto_poblar_vacaciones(sender, **kwargs):
             except GestionVacacion.DoesNotExist:
                 poblar_gestion_vacacion(f)
 
+        # Crear usuario Django si no existe (para poder iniciar sesión)
+        from django.contrib.auth.models import User
+        for f in Funcionario.objects.select_related('ci').filter(estado='ACTIVO'):
+            ci = f.ci.ci
+            if not User.objects.filter(username=ci).exists():
+                User.objects.create_user(username=ci, password=f.contrasena_hash or '12345678')
+
     except Exception:
         pass  # No interrumpir migrate si la DB aún no está lista

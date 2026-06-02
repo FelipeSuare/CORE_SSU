@@ -15,9 +15,10 @@ const estadoUrl  = cod => `${URL_BASE}${cod}/estado/`;
 // ═══════════════════════════════════════════════════════════════
 //  Estado global
 // ═══════════════════════════════════════════════════════════════
-let tabActual    = 'ACTIVO';
-let editandoCod  = null;
+let tabActual        = 'ACTIVO';
+let editandoCod      = null;
 let aprobadoresCache = null;
+let _debounceTimer   = null;
 
 const formOverlay = document.getElementById('formOverlay');
 const formPanel   = document.getElementById('formPanel');
@@ -28,8 +29,16 @@ const formPanel   = document.getElementById('formPanel');
 document.addEventListener('DOMContentLoaded', () => {
     cargarTabla();
     cargarPerfil();
-    document.getElementById('searchInput').addEventListener('keyup', e => {
-        if (e.key === 'Enter') filtrarTabla();
+
+    const input = document.getElementById('searchInput');
+    input.addEventListener('input',   () => mostrarSugerencias());
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { cerrarDropdown(); filtrarTabla(); }
+        if (e.key === 'Escape') cerrarDropdown();
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.search-box')) cerrarDropdown();
     });
 });
 
@@ -119,11 +128,70 @@ function cambiarTab(estado) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Búsqueda
+//  Búsqueda con autocompletado
 // ═══════════════════════════════════════════════════════════════
 function filtrarTabla() {
     const q = document.getElementById('searchInput').value.trim();
+    cerrarDropdown();
     cargarTabla(q);
+}
+
+function cerrarDropdown() {
+    document.getElementById('sugerenciasDropdown').style.display = 'none';
+}
+
+function mostrarSugerencias() {
+    clearTimeout(_debounceTimer);
+    const texto = document.getElementById('searchInput').value.trim();
+    if (texto.length < 2) { cerrarDropdown(); return; }
+    _debounceTimer = setTimeout(() => _fetchSugerencias(texto), 250);
+}
+
+async function _fetchSugerencias(texto) {
+    const dropdown = document.getElementById('sugerenciasDropdown');
+    try {
+        const resp = await fetch(`/funcionarios/buscar/?q=${encodeURIComponent(texto)}`);
+        const data = await resp.json();
+        const hits = data.funcionarios || [];
+
+        if (!hits.length) {
+            dropdown.innerHTML = `
+                <div class="sug-item sug-empty">
+                    <i class="material-symbols-outlined">person_off</i> No se encontró funcionario
+                </div>`;
+        } else {
+            dropdown.innerHTML = hits.map(f => `
+                <div class="sug-item" onclick="seleccionarSugerencia('${_escHtml(f.nombre_completo)}')">
+                    <i class="material-symbols-outlined sug-icon">person</i>
+                    <div>
+                        <div class="sug-nombre">${_resaltar(_escHtml(f.nombre_completo), texto)}</div>
+                        <div class="sug-ci">C.I. ${_resaltar(_escHtml(f.ci), texto)}</div>
+                    </div>
+                </div>`).join('');
+        }
+        dropdown.style.display = 'block';
+    } catch (err) {
+        console.error('Error autocompletado:', err);
+    }
+}
+
+function seleccionarSugerencia(nombreCompleto) {
+    document.getElementById('searchInput').value = nombreCompleto;
+    cerrarDropdown();
+    cargarTabla(nombreCompleto);
+}
+
+function _resaltar(html, q) {
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return html.replace(
+        new RegExp(`(${safe})`, 'gi'),
+        `<mark style="background:rgba(114,0,53,0.12);color:rgb(114,0,53);font-weight:800;border-radius:2px;padding:0 2px">$1</mark>`
+    );
+}
+
+function _escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ═══════════════════════════════════════════════════════════════

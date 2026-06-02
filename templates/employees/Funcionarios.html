@@ -73,8 +73,9 @@
                 <div class="table-header">
                     <h2><i class="material-symbols-outlined">list</i> Lista de Funcionarios</h2>
                     <div class="search-box">
-                        <input type="text" id="searchInput" placeholder="Buscar por nombre, CI o cargo...">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre, CI o cargo..." autocomplete="off">
                         <button class="btn-search" onclick="filtrarTabla()"><i class="material-symbols-outlined">search</i></button>
+                        <div id="sugerenciasDropdown" class="sugerencias-dropdown" style="display:none"></div>
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -121,7 +122,7 @@
                     <h3 class="section-title"><i class="material-symbols-outlined">work</i> Datos Laborales</h3>
                     <div class="modal-grid">
                         <div class="form-group"><label>Cargo</label><div class="input-wrapper"><i class="material-symbols-outlined input-icon">work</i><input type="text" id="cargo" required></div></div>
-                        <div class="form-group"><label>Tipo de Contrato</label><div class="input-wrapper"><i class="material-symbols-outlined input-icon">description</i><select id="tipoContrato" required><option value="">Seleccionar...</option><option value="Indefinido">Indefinido</option><option value="Item">Item</option></select></div></div>
+                        <div class="form-group"><label>Tipo de Contrato</label><div class="input-wrapper"><i class="material-symbols-outlined input-icon">description</i><select id="tipoContrato" required><option value="">Seleccionar...</option><option value="Contrato Indefinido">Contrato Indefinido</option><option value="Item">Item</option></select></div></div>
                         <div class="form-group"><label>Unidad Organizacional</label><div class="input-wrapper"><i class="material-symbols-outlined input-icon">domain</i><select id="unidad" required><option value="">Seleccionar...</option><option value="Administrativa">Administrativa</option><option value="Salud">Salud</option></select></div></div>
                         <div class="form-group"><label>Fecha de Ingreso</label><div class="input-wrapper"><i class="material-symbols-outlined input-icon">calendar_month</i><input type="date" id="fechaIngreso" required></div></div>
                     </div>
