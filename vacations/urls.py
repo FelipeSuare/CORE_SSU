@@ -14,4 +14,7 @@ urlpatterns = [
     # Historial RRHH
     path('api/vacaciones/historial-rrhh/',                           views.api_historial_rrhh,  name='vac_historial_rrhh'),
     path('api/vacaciones/historial-rrhh/pdf/<int:id_formulario>/',   views.api_descargar_pdf,   name='vac_pdf'),
+    # Gestión de saldo (RRHH)
+    path('api/vacaciones/acreditar-gestion/',                        views.acreditar_gestion,    name='vac_acreditar_gestion'),
+    path('api/vacaciones/inicializar/',                              views.inicializar_vacaciones, name='vac_inicializar'),
 ]

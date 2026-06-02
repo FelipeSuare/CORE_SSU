@@ -17,6 +17,7 @@ from vacations.models import (
     AprobacionSolicitud, GestionVacacion,
     JerarquiaAprobacion, SolicitudVacacion,
 )
+from vacations.utils import calcular_anios_antiguedad, dias_por_antiguedad, poblar_gestion_vacacion
 
 _NIVEL_LABELS = {
     'SUBORDINADO':            {1: 'Jefe de Área', 2: 'Gerente Adm./Salud', 3: 'Gerente General'},
@@ -188,8 +189,9 @@ def datos_formulario(request):
 
     hoy = date.today()
     fi = f.fecha_ingreso
-    anios = hoy.year - fi.year - ((hoy.month, hoy.day) < (fi.month, fi.day))
+    anios = calcular_anios_antiguedad(fi)
     puede_solicitar = anios >= 1 and saldos['dias_adeudados'] > 0
+    dias_correspondientes = float(dias_por_antiguedad(anios))
 
     # Cuántas gestiones tienen saldo > 0
     gestiones_con_saldo = sum(
@@ -220,6 +222,8 @@ def datos_formulario(request):
         'tipo_funcionario': f.tipo_funcionario,
         'gestiones_con_saldo': gestiones_con_saldo,
         'roles': roles_activos,
+        'anios_antiguedad': anios,
+        'dias_correspondientes': dias_correspondientes,
     })
 
 
@@ -850,6 +854,179 @@ def registrar_decision(request):
         'decision': decision,
         'nuevo_estado': _estado_display(solicitud.estado),
         'codigo': f"G{solicitud.id_formulario:03d}",
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MÓDULO: GESTIÓN DE SALDO DE VACACIONES (RRHH)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_ROLES_RRHH = {'RRHH', 'Administrador'}
+
+
+def _get_usuario_rrhh(request):
+    """Devuelve (funcionario, roles) si el usuario tiene rol RRHH/Administrador."""
+    ci = request.user.username
+    f = Funcionario.objects.select_related('ci').get(ci__ci=ci, estado='ACTIVO')
+    roles = set(FuncionarioRol.objects.filter(
+        cod_funcionario=f, activo=True
+    ).values_list('id_roles__tipo_rol', flat=True))
+    return f, roles
+
+
+@login_required(login_url='login_home')
+@require_POST
+def acreditar_gestion(request):
+    """
+    Acredita los días de vacación correspondientes a una gestión anual.
+    Calcula automáticamente los días según la Ley General del Trabajo
+    en base a los años de antigüedad del funcionario.
+
+    Body JSON: { cod_funcionario, anio_gestion }
+    """
+    try:
+        _, roles = _get_usuario_rrhh(request)
+    except Funcionario.DoesNotExist:
+        return JsonResponse({'error': 'Funcionario no encontrado.'}, status=404)
+
+    if not (roles & _ROLES_RRHH):
+        return JsonResponse({'error': 'Sin permiso. Se requiere rol RRHH o Administrador.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
+
+    cod_funcionario = str(data.get('cod_funcionario', '')).strip()
+    anio_raw = data.get('anio_gestion')
+
+    if not cod_funcionario or anio_raw is None:
+        return JsonResponse({'error': 'cod_funcionario y anio_gestion son requeridos.'}, status=400)
+
+    try:
+        anio_gestion = int(anio_raw)
+        if anio_gestion < 2000 or anio_gestion > date.today().year:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'anio_gestion inválido.'}, status=400)
+
+    try:
+        funcionario = Funcionario.objects.select_related('ci').get(cod_funcionario=cod_funcionario)
+    except Funcionario.DoesNotExist:
+        return JsonResponse({'error': 'Funcionario no encontrado.'}, status=404)
+
+    # Antigüedad al cierre de la gestión solicitada
+    referencia = date(anio_gestion, 12, 31)
+    anios = calcular_anios_antiguedad(funcionario.fecha_ingreso, referencia)
+
+    if anios < 1:
+        return JsonResponse(
+            {'error': f'El funcionario no completó 1 año de servicio en la gestión {anio_gestion}.'},
+            status=400
+        )
+
+    dias = dias_por_antiguedad(anios)
+
+    try:
+        gv = GestionVacacion.objects.get(cod_funcionario=funcionario)
+    except GestionVacacion.DoesNotExist:
+        gv = GestionVacacion(cod_funcionario=funcionario)
+
+    # Verificar que la gestión no esté ya acreditada
+    for i in range(1, 5):
+        if getattr(gv, f'anio_gestion{i}') == anio_gestion:
+            return JsonResponse(
+                {'error': f'La gestión {anio_gestion} ya fue acreditada para este funcionario.'},
+                status=400
+            )
+
+    # Encontrar el primer slot vacío (slot 4 = más antiguo, slot 1 = más reciente)
+    slot = None
+    for i in range(4, 0, -1):
+        if getattr(gv, f'anio_gestion{i}') is None:
+            slot = i
+            break
+
+    if slot is None:
+        return JsonResponse(
+            {'error': 'No hay slots disponibles. El funcionario tiene 4 gestiones pendientes de uso.'},
+            status=400
+        )
+
+    setattr(gv, f'anio_gestion{slot}', anio_gestion)
+    setattr(gv, f'dias_gestion{slot}', dias)
+
+    if gv.pk:
+        gv.save(update_fields=[f'anio_gestion{slot}', f'dias_gestion{slot}'])
+    else:
+        gv.save()
+
+    p = funcionario.ci
+    return JsonResponse({
+        'ok': True,
+        'funcionario': f"{p.nombre} {p.ap_paterno}".strip(),
+        'anio_gestion': anio_gestion,
+        'anios_antiguedad': anios,
+        'dias_acreditados': float(dias),
+        'slot': slot,
+    }, status=201)
+
+
+@login_required(login_url='login_home')
+@require_POST
+def inicializar_vacaciones(request):
+    """
+    Acredita automáticamente todas las gestiones pendientes a uno o todos los
+    funcionarios activos, según la Ley General del Trabajo.
+
+    Body JSON: { cod_funcionario: "..." }   ← opcional; si se omite, procesa todos.
+    """
+    try:
+        _, roles = _get_usuario_rrhh(request)
+    except Funcionario.DoesNotExist:
+        return JsonResponse({'error': 'Funcionario no encontrado.'}, status=404)
+
+    if not (roles & _ROLES_RRHH):
+        return JsonResponse({'error': 'Sin permiso. Se requiere rol RRHH o Administrador.'}, status=403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    cod_funcionario = str(data.get('cod_funcionario', '')).strip()
+
+    qs = Funcionario.objects.select_related('ci').filter(estado='ACTIVO')
+    if cod_funcionario:
+        qs = qs.filter(cod_funcionario=cod_funcionario)
+        if not qs.exists():
+            return JsonResponse({'error': 'Funcionario no encontrado.'}, status=404)
+
+    procesados = []
+    omitidos = []
+
+    for f in qs:
+        stats = poblar_gestion_vacacion(f)
+        nombre = f"{f.ci.nombre} {f.ci.ap_paterno}".strip()
+        if stats['sin_elegibilidad']:
+            omitidos.append({'cod': f.cod_funcionario, 'nombre': nombre, 'motivo': 'Sin antigüedad suficiente'})
+        elif stats['acreditadas'] == 0:
+            omitidos.append({'cod': f.cod_funcionario, 'nombre': nombre, 'motivo': 'Gestiones ya acreditadas'})
+        else:
+            procesados.append({
+                'cod': f.cod_funcionario,
+                'nombre': nombre,
+                'gestiones_acreditadas': stats['acreditadas'],
+            })
+
+    return JsonResponse({
+        'ok': True,
+        'procesados': procesados,
+        'omitidos': omitidos,
+        'resumen': {
+            'total_procesados': len(procesados),
+            'total_omitidos': len(omitidos),
+        },
     })
 
 

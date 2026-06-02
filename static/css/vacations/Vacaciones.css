@@ -605,6 +605,7 @@ body {
     padding: 30px;
     border-radius: 15px;
     box-shadow: var(--shadow-heavy);
+    max-height: max-content;
 }
 
 .new-holiday-card {

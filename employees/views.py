@@ -12,6 +12,7 @@ from core.models import UnidadOrganizacional
 from employees.models import Persona, Funcionario, HistorialCargo
 from accounts.models import Roles, FuncionarioRol
 from vacations.models import GestionVacacion, JerarquiaAprobacion
+from vacations.utils import calcular_anios_antiguedad, dias_por_antiguedad
 
 _NIVELES = {
     'SUBORDINADO':            3,
@@ -281,6 +282,20 @@ def nuevo_funcionario(request):
                     pass
             if not User.objects.filter(username=ci).exists():
                 User.objects.create_user(username=ci, password='1234567')
+
+            # Crear registro de gestión de vacaciones.
+            # Si el funcionario ya tiene ≥1 año de antigüedad (ingreso retroactivo),
+            # se acredita automáticamente la gestión correspondiente al año de ingreso.
+            anios_al_ingresar = calcular_anios_antiguedad(fecha_ing)
+            if anios_al_ingresar >= 1:
+                dias = dias_por_antiguedad(anios_al_ingresar)
+                GestionVacacion.objects.create(
+                    cod_funcionario=funcionario,
+                    dias_gestion4=dias,
+                    anio_gestion4=fecha_ing.year,
+                )
+            else:
+                GestionVacacion.objects.create(cod_funcionario=funcionario)
 
     except IntegrityError as e:
         return JsonResponse({'error': f'Error de base de datos: {e}'}, status=400)
