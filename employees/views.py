@@ -62,7 +62,14 @@ def _calcular_antiguedad(fecha_ingreso):
 
 def _siguiente_cod_funcionario():
     with connection.cursor() as cur:
-        cur.execute("SELECT nextval('funcionario_cod_funcionario_seq')")
+        cur.execute("""
+            SELECT COALESCE(MAX(
+                CASE WHEN cod_funcionario ~ '^[0-9]+$'
+                THEN CAST(cod_funcionario AS INTEGER)
+                ELSE 0 END
+            ), 0) + 1
+            FROM funcionario
+        """)
         return str(cur.fetchone()[0])
 
 

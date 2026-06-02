@@ -77,12 +77,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             todosFuncionarios = data.funcionarios;
+            actualizarHeadersGestion();
             renderTabla(todosFuncionarios);
         } catch (e) {
             console.error('Error cargando funcionarios:', e);
             document.getElementById('tablaBody').innerHTML =
                 `<tr><td colspan="10" style="text-align:center;padding:28px;color:#c00">Error al cargar datos.</td></tr>`;
         }
+    }
+
+    // ══════════════════════════════════════════════
+    // CABECERAS GESTIÓN
+    // ══════════════════════════════════════════════
+    function actualizarHeadersGestion() {
+        const base = new Date().getFullYear();
+        ['thRP1','thRP2','thRP3','thRP4'].forEach((id, i) => {
+            const th = document.getElementById(id);
+            if (th) th.textContent = base - i;
+        });
     }
 
     // ══════════════════════════════════════════════
@@ -108,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${esc(f.nombre_completo)}</td>
                 <td>${esc(f.cargo)}</td>
                 <td>${f.fecha_ingreso}</td>
-                ${f.gestiones.map(g => celdaGestion(g)).join('')}
+                ${f.gestiones.map((g, i) => celdaGestion(g, i)).join('')}
                 ${celdaNegados(f)}
                 ${celdaAdeudado(f)}
                 <td class="td-accion">
@@ -128,16 +140,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function celdaGestion(g) {
-        if (!g.anio) return `<td><span class="sin-dias">—</span></td>`;
+    function celdaGestion(g, i) {
+        const base = new Date().getFullYear();
+        const anioMostrar = g.anio !== null ? g.anio : (base - i);
         if (g.dias === 0) {
             return `<td><div class="gestion-cell">
-                        <span class="gestion-anio">${g.anio}</span>
+                        <span class="gestion-anio">${anioMostrar}</span>
                         <span class="sin-dias">0</span>
                     </div></td>`;
         }
         return `<td><div class="gestion-cell">
-                    <span class="gestion-anio">${g.anio}</span>
+                    <span class="gestion-anio">${anioMostrar}</span>
                     <span class="dias-val">${fmt(g.dias)}</span>
                 </div></td>`;
     }

@@ -37,7 +37,12 @@
 
                 <div class="input-group">
                     <span class="icon"><i class="material-symbols-outlined">lock</i></span>
-                    <input type="password" name="password" placeholder="Contraseña" required>
+                    <input type="password" name="password" id="passwordInput" placeholder="Contraseña" required>
+                    <button type="button" id="togglePassword"
+                            style="background:none;border:none;cursor:pointer;padding:0;margin-left:6px;color:rgb(114,0,53);display:flex;align-items:center;"
+                            onclick="togglePasswordVisibility()">
+                        <i class="material-symbols-outlined" id="toggleIcon" style="font-size:20px">visibility_off</i>
+                    </button>
                 </div>
 
                 <button type="submit">Iniciar Sesión</button>
@@ -46,6 +51,19 @@
     </div>
     <script src="{% static 'js/accounts/movimiento.js' %}"></script>
     <script src="{% static 'js/shared/notifications.js' %}"></script>
+    <script>
+        function togglePasswordVisibility() {
+            const input = document.getElementById('passwordInput');
+            const icon  = document.getElementById('toggleIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility_off';
+            }
+        }
+    </script>
 </body>
 </html>
 

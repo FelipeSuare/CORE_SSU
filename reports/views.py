@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
@@ -138,11 +140,20 @@ def api_rp_funcionarios(request):
         gv = gestiones_map.get(f.cod_funcionario)
         am = f.ci.ap_materno or ''
 
-        gestiones = []
-        for i in range(1, 5):
-            anio = getattr(gv, f'anio_gestion{i}', None) if gv else None
-            dias = float(getattr(gv, f'dias_gestion{i}') or 0) if gv else 0.0
-            gestiones.append({'anio': anio, 'dias': dias})
+        current_year = date.today().year
+        if gv:
+            anios_dict = {}
+            for i in range(1, 5):
+                anio = getattr(gv, f'anio_gestion{i}', None)
+                dias = float(getattr(gv, f'dias_gestion{i}') or 0)
+                if anio is not None:
+                    anios_dict[anio] = dias
+            gestiones = [
+                {'anio': yr if yr in anios_dict else None, 'dias': anios_dict.get(yr, 0.0)}
+                for yr in [current_year, current_year - 1, current_year - 2, current_year - 3]
+            ]
+        else:
+            gestiones = [{'anio': None, 'dias': 0.0} for _ in range(4)]
 
         result.append({
             'cod':              f.cod_funcionario,

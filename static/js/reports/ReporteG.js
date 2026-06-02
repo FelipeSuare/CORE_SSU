@@ -101,16 +101,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ══════════════════════════════════════════════
     // DETERMINAR AÑOS DE GESTIÓN
     // ══════════════════════════════════════════════
-    function determinarAniosGestiones(funcionarios) {
-        const anios = [null, null, null, null];
-        for (const f of funcionarios) {
-            f.gestiones.forEach((g, i) => {
-                if (g.anio !== null && anios[i] === null) anios[i] = g.anio;
-            });
-            if (anios.every(a => a !== null)) break;
-        }
+    function determinarAniosGestiones(_funcionarios) {
         const base = new Date().getFullYear();
-        return anios.map((a, i) => a !== null ? a : (base - 3 + i));
+        return [base, base - 1, base - 2, base - 3];
     }
 
     function actualizarCabeceras() {

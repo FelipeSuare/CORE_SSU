@@ -1,57 +1,5 @@
-// ======================================== DATOS DE PRUEBA SIMULADOS ========================================
-// Estos datos simulan solicitudes de vacaciones activas que pueden ser anuladas
-const solicitudesVacaciones = [
-    { 
-        id: 1, 
-        funcionario: 'Juan Pérez', 
-        cargo: 'Analista Contable', 
-        fechaInicio: '2025-12-15', 
-        fechaFinal: '2025-12-29', 
-        diasTotales: 10, 
-        saldoActual: 20, 
-        estado: 'activa' 
-    },
-    { 
-        id: 2, 
-        funcionario: 'María Gómez', 
-        cargo: 'Médico General', 
-        fechaInicio: '2026-01-05', 
-        fechaFinal: '2026-01-11', 
-        diasTotales: 5, 
-        saldoActual: 25, 
-        estado: 'activa' 
-    },
-    { 
-        id: 3, 
-        funcionario: 'Carlos Mesa', 
-        cargo: 'Auxiliar RRHH', 
-        fechaInicio: '2026-02-01', 
-        fechaFinal: '2026-02-22', 
-        diasTotales: 15, 
-        saldoActual: 15, 
-        estado: 'activa' 
-    },
-    { 
-        id: 4, 
-        funcionario: 'Ana Vaca', 
-        cargo: 'Enfermera', 
-        fechaInicio: '2025-12-20', 
-        fechaFinal: '2025-12-30', 
-        diasTotales: 7, 
-        saldoActual: 23, 
-        estado: 'activa' 
-    },
-    { 
-        id: 5, 
-        funcionario: 'Pedro Roca', 
-        cargo: 'Jefe Administrativo', 
-        fechaInicio: '2025-11-01', 
-        fechaFinal: '2025-11-20', 
-        diasTotales: 14, 
-        saldoActual: 16, 
-        estado: 'completada' 
-    },
-];
+// ======================================== ESTADO ========================================
+const solicitudesVacaciones = [];
 
 // ======================================== VARIABLES GLOBALES ========================================
 let solicitudSeleccionada = null;

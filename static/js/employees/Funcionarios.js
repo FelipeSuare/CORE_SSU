@@ -222,7 +222,15 @@ async function abrirEditar(cod) {
     document.getElementById('fechaNacimiento').value = f.fecha_nacimiento;
     document.getElementById('sexo').value            = f.sexo;
     document.getElementById('cargo').value           = f.cargo;
-    document.getElementById('tipoContrato').value    = f.tipo_contrato;
+    const tcSelect = document.getElementById('tipoContrato');
+    tcSelect.value = f.tipo_contrato;
+    if (tcSelect.value !== f.tipo_contrato && f.tipo_contrato) {
+        const opt = document.createElement('option');
+        opt.value = f.tipo_contrato;
+        opt.textContent = f.tipo_contrato;
+        tcSelect.appendChild(opt);
+        tcSelect.value = f.tipo_contrato;
+    }
     document.getElementById('unidad').value          = f.unidad;
     document.getElementById('fechaIngreso').value    = f.fecha_ingreso;
     document.getElementById('tipoFuncionario').value = f.tipo_funcionario;
