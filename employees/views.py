@@ -99,6 +99,7 @@ def _serializar_funcionario(f):
         'ap_materno':       p.ap_materno or '',
         'fecha_nacimiento': p.fecha_nacimiento.strftime('%Y-%m-%d') if p.fecha_nacimiento else '',
         'sexo':             p.sexo,
+        'matricula_seguro': f.matricula_seguro or '',
         'cargo':            cargo_act.cargo if cargo_act else '',
         'tipo_contrato':    cargo_act.tipo_contrato if cargo_act else '',
         'unidad':           f.id_unidad.nombre,
@@ -206,19 +207,20 @@ def nuevo_funcionario(request):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
 
-    ci            = data.get('ci', '').strip()
-    nombres       = data.get('nombres', '').strip()
-    ap_paterno    = data.get('ap_paterno', '').strip()
-    ap_materno    = data.get('ap_materno', '').strip()
-    fecha_nac_str = data.get('fecha_nacimiento', '').strip()
-    sexo          = data.get('sexo', '').strip()
-    cargo         = data.get('cargo', '').strip()
-    tipo_contrato = data.get('tipo_contrato', '').strip()
-    unidad_nombre = data.get('unidad', '').strip()
-    fecha_ing_str = data.get('fecha_ingreso', '').strip()
-    tipo_func     = data.get('tipo_funcionario', '').strip()
-    roles_nombres = list(data.get('roles', ['Funcionario']))
-    jerarquia     = data.get('jerarquia', [])
+    ci               = data.get('ci', '').strip()
+    nombres          = data.get('nombres', '').strip()
+    ap_paterno       = data.get('ap_paterno', '').strip()
+    ap_materno       = data.get('ap_materno', '').strip()
+    fecha_nac_str    = data.get('fecha_nacimiento', '').strip()
+    sexo             = data.get('sexo', '').strip()
+    matricula_seguro = data.get('matricula_seguro', '').strip() or None
+    cargo            = data.get('cargo', '').strip()
+    tipo_contrato    = data.get('tipo_contrato', '').strip()
+    unidad_nombre    = data.get('unidad', '').strip()
+    fecha_ing_str    = data.get('fecha_ingreso', '').strip()
+    tipo_func        = data.get('tipo_funcionario', '').strip()
+    roles_nombres    = list(data.get('roles', ['Funcionario']))
+    jerarquia        = data.get('jerarquia', [])
 
     if not all([ci, nombres, ap_paterno, fecha_nac_str, sexo, cargo,
                 tipo_contrato, unidad_nombre, fecha_ing_str, tipo_func]):
@@ -254,6 +256,7 @@ def nuevo_funcionario(request):
                 cod_funcionario=cod, ci=persona, id_unidad=unidad,
                 fecha_ingreso=fecha_ing, tipo_funcionario=tipo_func,
                 estado='ACTIVO', contrasena_hash='1234567',
+                matricula_seguro=matricula_seguro,
             )
             HistorialCargo.objects.create(
                 cod_funcionario=funcionario, cargo=cargo,
@@ -320,18 +323,19 @@ def editar_funcionario(request, cod):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
 
-    nombres       = data.get('nombres', '').strip()
-    ap_paterno    = data.get('ap_paterno', '').strip()
-    ap_materno    = data.get('ap_materno', '').strip()
-    fecha_nac_str = data.get('fecha_nacimiento', '').strip()
-    sexo          = data.get('sexo', '').strip()
-    cargo         = data.get('cargo', '').strip()
-    tipo_contrato = data.get('tipo_contrato', '').strip()
-    unidad_nombre = data.get('unidad', '').strip()
-    fecha_ing_str = data.get('fecha_ingreso', '').strip()
-    tipo_func     = data.get('tipo_funcionario', '').strip()
-    roles_nombres = list(data.get('roles', ['Funcionario']))
-    jerarquia     = data.get('jerarquia', [])
+    nombres          = data.get('nombres', '').strip()
+    ap_paterno       = data.get('ap_paterno', '').strip()
+    ap_materno       = data.get('ap_materno', '').strip()
+    fecha_nac_str    = data.get('fecha_nacimiento', '').strip()
+    sexo             = data.get('sexo', '').strip()
+    matricula_seguro = data.get('matricula_seguro', '').strip() or None
+    cargo            = data.get('cargo', '').strip()
+    tipo_contrato    = data.get('tipo_contrato', '').strip()
+    unidad_nombre    = data.get('unidad', '').strip()
+    fecha_ing_str    = data.get('fecha_ingreso', '').strip()
+    tipo_func        = data.get('tipo_funcionario', '').strip()
+    roles_nombres    = list(data.get('roles', ['Funcionario']))
+    jerarquia        = data.get('jerarquia', [])
 
     if not all([nombres, ap_paterno, fecha_nac_str, sexo, cargo,
                 tipo_contrato, unidad_nombre, fecha_ing_str, tipo_func]):
@@ -366,7 +370,8 @@ def editar_funcionario(request, cod):
             funcionario.id_unidad        = unidad
             funcionario.fecha_ingreso    = fecha_ing
             funcionario.tipo_funcionario = tipo_func
-            funcionario.save(update_fields=['id_unidad', 'fecha_ingreso', 'tipo_funcionario'])
+            funcionario.matricula_seguro = matricula_seguro
+            funcionario.save(update_fields=['id_unidad', 'fecha_ingreso', 'tipo_funcionario', 'matricula_seguro'])
 
             cargo_act = HistorialCargo.objects.filter(cod_funcionario=funcionario, es_actual=True).first()
             if cargo_act and (cargo_act.cargo != cargo or cargo_act.tipo_contrato != tipo_contrato):
@@ -467,7 +472,30 @@ def toggle_estado(request, cod):
         f = Funcionario.objects.get(cod_funcionario=cod)
     except Funcionario.DoesNotExist:
         return JsonResponse({'error': 'Funcionario no encontrado.'}, status=404)
-    f.estado = 'INACTIVO' if f.estado == 'ACTIVO' else 'ACTIVO'
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    nuevo_estado = 'INACTIVO' if f.estado == 'ACTIVO' else 'ACTIVO'
+
+    if nuevo_estado == 'INACTIVO':
+        fecha_baja_str = data.get('fecha_baja', '').strip()
+        if not fecha_baja_str:
+            return JsonResponse({'error': 'La fecha de baja es requerida.'}, status=400)
+        try:
+            fecha_baja = date.fromisoformat(fecha_baja_str)
+        except ValueError:
+            return JsonResponse({'error': 'Fecha de baja inválida.'}, status=400)
+
+        cargo_act = HistorialCargo.objects.filter(cod_funcionario=f, es_actual=True).first()
+        if cargo_act:
+            cargo_act.fecha_fin = fecha_baja
+            cargo_act.es_actual = False
+            cargo_act.save(update_fields=['fecha_fin', 'es_actual'])
+
+    f.estado = nuevo_estado
     f.save(update_fields=['estado'])
     return JsonResponse({'ok': True, 'estado': f.estado})
 

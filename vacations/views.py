@@ -28,7 +28,7 @@ _NIVEL_LABELS = {
     'GERENTE_GENERAL':        {},
 }
 
-_ESTADOS_PENDIENTE = ('PENDIENTE_JEFE', 'PENDIENTE_GERENTE', 'PENDIENTE_GERENTE_GENERAL')
+_ESTADOS_PENDIENTE = ('PENDIENTE_JEFE', 'PENDIENTE_GERENTE_AREA', 'PENDIENTE_GERENTE_GENERAL')
 
 _NIVEL_COLS = {
     'SUBORDINADO': [
@@ -542,7 +542,7 @@ def seguimiento_solicitud(request):
 # ══════════════════════════════════════════════════════════════════════════════
 
 _ROLES_APROBADOR = {'Jefe de Area', 'Gerente Administrativo', 'Gerente de Salud', 'Gerente General'}
-_ESTADOS_MAPA_SIGUIENTE = {1: 'PENDIENTE_GERENTE', 2: 'PENDIENTE_GERENTE_GENERAL'}
+_ESTADOS_MAPA_SIGUIENTE = {1: 'PENDIENTE_GERENTE_AREA', 2: 'PENDIENTE_GERENTE_GENERAL'}
 
 
 # ──────────────────────────────────────────────────────────────

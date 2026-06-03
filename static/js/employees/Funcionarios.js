@@ -19,6 +19,7 @@ let tabActual        = 'ACTIVO';
 let editandoCod      = null;
 let aprobadoresCache = null;
 let _debounceTimer   = null;
+let _bajaCod         = null;
 
 const formOverlay = document.getElementById('formOverlay');
 const formPanel   = document.getElementById('formPanel');
@@ -108,8 +109,8 @@ function renderizarTabla(lista) {
                 <button class="action-btn action-btn-edit"   onclick="abrirEditar('${f.cod}')" title="Editar">
                     <i class="material-symbols-outlined">edit</i>
                 </button>
-                <button class="action-btn action-btn-toggle" onclick="cambiarEstado('${f.cod}')"
-                        title="${f.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}">
+                <button class="action-btn action-btn-toggle" onclick="cambiarEstado('${f.cod}','${f.estado}')"
+                        title="${f.estado === 'ACTIVO' ? 'Dar de baja' : 'Reactivar'}">
                     <i class="material-symbols-outlined">power_settings_new</i>
                 </button>
             </td>
@@ -195,21 +196,69 @@ function _escHtml(s) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Toggle estado
+//  Toggle estado / Baja con fecha
 // ═══════════════════════════════════════════════════════════════
-async function cambiarEstado(cod) {
-    const confirmar = await AppDialog.confirm(
-        '¿Cambiar el estado de este funcionario?',
-        { title: 'Confirmar', icon: 'power_settings_new', confirmText: 'Sí', cancelText: 'No' }
-    );
-    if (!confirmar) return;
+async function cambiarEstado(cod, estadoActual) {
+    if (estadoActual === 'ACTIVO') {
+        abrirModalBaja(cod);
+    } else {
+        const confirmar = await AppDialog.confirm(
+            '¿Reactivar a este funcionario?',
+            { title: 'Reactivar', icon: 'person_check', confirmText: 'Sí', cancelText: 'No' }
+        );
+        if (!confirmar) return;
+        try {
+            const resp = await fetch(estadoUrl(cod), {
+                method: 'POST', headers: { 'X-CSRFToken': CSRF },
+            });
+            const data = await resp.json();
+            if (!resp.ok) { AppDialog.alert(data.error, { title: 'Error', icon: 'error' }); return; }
+            cargarTabla();
+        } catch {
+            AppDialog.alert('Error de conexión.', { title: 'Error', icon: 'wifi_off' });
+        }
+    }
+}
+
+function abrirModalBaja(cod) {
+    _bajaCod = cod;
+    const hoy = new Date().toISOString().split('T')[0];
+    const input = document.getElementById('fechaBaja');
+    input.value = hoy;
+    input.max   = hoy;
+    const overlay = document.getElementById('bajaOverlay');
+    const panel   = document.getElementById('bajaPanel');
+    overlay.style.display = 'flex';
+    setTimeout(() => { overlay.classList.add('active'); panel.classList.add('active'); }, 10);
+}
+
+function cerrarModalBaja() {
+    const overlay = document.getElementById('bajaOverlay');
+    const panel   = document.getElementById('bajaPanel');
+    panel.classList.remove('active');
+    setTimeout(() => {
+        overlay.classList.remove('active');
+        setTimeout(() => { overlay.style.display = 'none'; _bajaCod = null; }, 300);
+    }, 300);
+}
+
+async function confirmarBaja() {
+    const fechaBaja = document.getElementById('fechaBaja').value;
+    if (!fechaBaja) {
+        AppDialog.alert('Debe ingresar una fecha de baja.', { title: 'Campo requerido', icon: 'warning' });
+        return;
+    }
+    cerrarModalBaja();
     try {
-        const resp = await fetch(estadoUrl(cod), {
-            method: 'POST', headers: { 'X-CSRFToken': CSRF },
+        const resp = await fetch(estadoUrl(_bajaCod), {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body:    JSON.stringify({ fecha_baja: fechaBaja }),
         });
         const data = await resp.json();
         if (!resp.ok) { AppDialog.alert(data.error, { title: 'Error', icon: 'error' }); return; }
         cargarTabla();
+        AppDialog.alert('Funcionario dado de baja correctamente.', { title: 'Baja registrada', icon: 'check_circle', variant: 'success' });
     } catch {
         AppDialog.alert('Error de conexión.', { title: 'Error', icon: 'wifi_off' });
     }
@@ -258,6 +307,8 @@ async function mostrarFormulario() {
     aprobadoresCache = null;
     document.getElementById('formTitle').textContent = 'Registrar Funcionario';
     document.getElementById('funcionarioForm').reset();
+    document.getElementById('codFuncionario').value = '';
+    document.getElementById('matriculaSeguro').value = '';
     limpiarRoles();
     document.getElementById('sectionJerarquia').style.display    = 'none';
     document.getElementById('sectionGerenteGeneral').style.display = 'none';
@@ -289,6 +340,8 @@ async function abrirEditar(cod) {
     document.getElementById('apellidoMaterno').value = f.ap_materno;
     document.getElementById('fechaNacimiento').value = f.fecha_nacimiento;
     document.getElementById('sexo').value            = f.sexo;
+    document.getElementById('codFuncionario').value  = f.cod;
+    document.getElementById('matriculaSeguro').value = f.matricula_seguro || '';
     document.getElementById('cargo').value           = f.cargo;
     const tcSelect = document.getElementById('tipoContrato');
     tcSelect.value = f.tipo_contrato;
@@ -510,6 +563,7 @@ document.getElementById('funcionarioForm').addEventListener('submit', async e =>
         ap_materno:       document.getElementById('apellidoMaterno').value.trim(),
         fecha_nacimiento: document.getElementById('fechaNacimiento').value,
         sexo:             document.getElementById('sexo').value,
+        matricula_seguro: document.getElementById('matriculaSeguro').value.trim(),
         cargo:            document.getElementById('cargo').value.trim(),
         tipo_contrato:    document.getElementById('tipoContrato').value,
         unidad:           document.getElementById('unidad').value,
