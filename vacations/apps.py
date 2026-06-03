@@ -6,7 +6,11 @@ class VacationsConfig(AppConfig):
 
     def ready(self):
         from django.db.models.signals import post_migrate
+        from django.core.signals import request_started
         post_migrate.connect(_auto_poblar_vacaciones, sender=self)
+        # En el primer request (no en migrate) también se ejecuta,
+        # así funciona al clonar y arrancar sin necesidad de migrate adicional
+        request_started.connect(_auto_poblar_vacaciones_primer_request)
 
 
 def _auto_poblar_vacaciones(sender, **kwargs):
@@ -75,4 +79,15 @@ def _auto_poblar_vacaciones(sender, **kwargs):
                 User.objects.create_user(username=ci, password=f.contrasena_hash or '12345678')
 
     except Exception:
-        pass  # No interrumpir migrate si la DB aún no está lista
+        pass  # No interrumpir migrate/startup si la DB aún no está lista
+
+
+_primer_request_ejecutado = False
+
+def _auto_poblar_vacaciones_primer_request(sender, **kwargs):
+    """Corre _auto_poblar_vacaciones una sola vez en el primer request HTTP."""
+    global _primer_request_ejecutado
+    if _primer_request_ejecutado:
+        return
+    _primer_request_ejecutado = True
+    _auto_poblar_vacaciones(sender=sender)
