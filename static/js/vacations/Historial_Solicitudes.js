@@ -281,6 +281,7 @@ function generarPlanillaPDF() {
     @page { size: A4 landscape; margin: 18mm 14mm; }
     body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
     .header { text-align: center; margin-bottom: 16px; }
+    .header-inner { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:8px; }
     .header h2 { font-size: 13px; font-weight: 800; color: rgb(39,20,71); margin-bottom: 2px; }
     .header h3 { font-size: 11px; font-weight: 700; color: rgb(114,0,53); margin-bottom: 4px; }
     .header p  { font-size: 10px; color: #555; }
@@ -303,9 +304,14 @@ function generarPlanillaPDF() {
 </head>
 <body>
 <div class="header">
-    <h2>SERVICIO DEPARTAMENTAL DE SALUD</h2>
-    <h3>RECURSOS HUMANOS</h3>
-    <p>Trinidad, ${fechaHoy}</p>
+    <div class="header-inner">
+        <img src="/static/img/login/LOGOSSU.png" style="height:62px;width:auto;">
+        <div>
+            <h2>SEGURO SOCIAL UNIVERSITARIO</h2>
+            <h3>RECURSOS HUMANOS</h3>
+            <p>Trinidad, ${fechaHoy}</p>
+        </div>
+    </div>
     <p style="font-weight:700;font-size:12px;color:rgb(39,20,71);margin-top:6px">HISTORIAL DE SOLICITUDES DE VACACIONES</p>
     <p style="font-size:10px;color:rgb(114,0,53);font-weight:600">${USUARIO_ACTUAL.nombre} &nbsp;·&nbsp; C.I. ${USUARIO_ACTUAL.ci}</p>
 </div>

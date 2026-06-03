@@ -72,7 +72,7 @@ body {
     box-shadow: 0 4px 6px var(--shadow-heavy); 
     font-weight: bold;
     transition: transform 0.3s, box-shadow 0.3s;
-    margin-right: 15px;
+    margin-right: 50px;
 }
 
 .back-to-menu:hover {
@@ -340,6 +340,7 @@ body {
     justify-content: center;
     transition: background 0.3s;
     height: 100%;
+    border-radius: 12px;
 }
 .btn-search:hover {
     background: var(--color-pink-dark);

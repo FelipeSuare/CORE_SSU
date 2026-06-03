@@ -17,4 +17,7 @@ urlpatterns = [
     # Gestión de saldo (RRHH)
     path('api/vacaciones/acreditar-gestion/',                        views.acreditar_gestion,    name='vac_acreditar_gestion'),
     path('api/vacaciones/inicializar/',                              views.inicializar_vacaciones, name='vac_inicializar'),
+    # Anulación y ajuste (RRHH)
+    path('api/vacaciones/anulacion/',            views.api_solicitudes_anulacion, name='vac_anulacion_list'),
+    path('api/vacaciones/anulacion/registrar/',  views.api_registrar_anulacion,   name='vac_anulacion_registrar'),
 ]

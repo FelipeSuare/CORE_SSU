@@ -285,42 +285,53 @@ function generarPlanillaPDF() {
 <style>
     @page  { size: A4 portrait; margin: 22mm 20mm 18mm; }
     *      { box-sizing: border-box; margin: 0; padding: 0; }
-    body   { font-family: Arial, sans-serif; font-size: 10.5px; color: #111; }
+    body   { font-family: 'Montserrat', Arial, sans-serif; font-size: 10.5px; color: #111; }
 
     /* ── Encabezado ── */
     .cabecera {
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         padding-bottom: 10px;
-        border-bottom: 2px solid #111;
+        border-bottom: 2px solid rgb(39,20,71);
         margin-bottom: 14px;
     }
+    .cab-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .cab-logo { height: 52px; width: auto; }
     .cab-institucion {
-        font-size: 14px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-    }
-    .cab-area {
-        font-size: 10px;
-        color: #444;
-        margin-top: 2px;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-    }
-    .cab-titulo {
         font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
-        margin-top: 9px;
-        border-bottom: 1px solid #111;
+        letter-spacing: 0.6px;
+        color: rgb(39,20,71);
+    }
+    .cab-area {
+        font-size: 9px;
+        color: rgb(114,0,53);
+        margin-top: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+    }
+    .cab-titulo {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        margin-top: 6px;
+        color: rgb(39,20,71);
+        border-bottom: 1px solid rgb(39,20,71);
         display: inline-block;
         padding-bottom: 1px;
     }
+    .cab-right { text-align: right; }
     .cab-fecha {
         font-size: 9px;
-        color: #666;
-        margin-top: 4px;
+        color: #555;
     }
 
     /* ── Ficha del funcionario ── */
@@ -328,11 +339,12 @@ function generarPlanillaPDF() {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 16px;
-        border: 1px solid #bbb;
+        border: 1px solid #e0c8d4;
+        background: #fdf5f8;
     }
     .ficha td {
         padding: 6px 10px;
-        border-right: 1px solid #bbb;
+        border-right: 1px solid #e0c8d4;
         vertical-align: top;
     }
     .ficha td:last-child { border-right: none; }
@@ -340,7 +352,7 @@ function generarPlanillaPDF() {
         font-size: 8px;
         font-weight: 700;
         text-transform: uppercase;
-        color: #666;
+        color: rgb(114,0,53);
         letter-spacing: 0.4px;
         display: block;
         margin-bottom: 2px;
@@ -348,20 +360,20 @@ function generarPlanillaPDF() {
     .ficha-val {
         font-size: 10.5px;
         font-weight: 600;
+        color: rgb(39,20,71);
     }
 
     /* ── Bloque por cargo ── */
     .cargo-bloque {
-        border: 1px solid #bbb;
+        border: 1px solid #e0c8d4;
         margin-bottom: 10px;
     }
     .cargo-header {
-        background: #f0f0f0;
+        background: linear-gradient(90deg, rgb(39,20,71), rgb(114,0,53));
         padding: 6px 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #bbb;
         gap: 8px;
     }
     .cargo-header-left {
@@ -369,29 +381,31 @@ function generarPlanillaPDF() {
         align-items: baseline;
         gap: 5px;
     }
-    .cargo-num   { font-weight: 700; font-size: 11px; white-space: nowrap; }
+    .cargo-num   { font-weight: 700; font-size: 11px; white-space: nowrap; color: #fff; }
     .cargo-titulo {
         font-weight: 700;
         font-size: 10.5px;
         white-space: nowrap;
+        color: #fff;
     }
     .cargo-periodo {
         font-size: 9px;
-        color: #555;
+        color: rgba(255,255,255,.75);
         margin-top: 2px;
     }
     .cargo-total-col { text-align: right; white-space: nowrap; }
     .total-etiq {
         font-size: 8px;
         text-transform: uppercase;
-        color: #666;
+        color: rgba(255,255,255,.75);
         letter-spacing: 0.3px;
         display: block;
     }
-    .total-num { font-size: 14px; font-weight: 700; }
+    .total-num { font-size: 14px; font-weight: 700; color: #fff; }
 
     /* ── Tabla gestiones ── */
     table { width: 100%; border-collapse: collapse; }
+    thead { background: linear-gradient(90deg, rgb(39,20,71), rgb(114,0,53)); }
     th {
         padding: 5px 10px;
         font-size: 9px;
@@ -399,22 +413,21 @@ function generarPlanillaPDF() {
         text-align: center;
         text-transform: uppercase;
         letter-spacing: 0.3px;
-        border-right: 1px solid #ddd;
-        color: #333;
+        border-right: 1px solid rgba(255,255,255,.15);
+        color: #fff;
     }
     th:last-child { border-right: none; }
     td {
         padding: 7px 10px;
         font-size: 10px;
         text-align: center;
-        border-right: 1px solid #eee;
-        border-top: 1px solid #eee;
+        border-bottom: 1px solid #f0e6ec;
     }
-    td:last-child { border-right: none; }
+    tbody tr:nth-child(even) td { background: #fdf6fa; }
 
-    .th-ant { background: #f7f7f7; }
-    .td-ant { background: #fafafa; }
-    .cero   { color: #bbb; }
+    .th-ant { background: rgba(0,0,0,.08); }
+    .td-ant { background: rgba(114,0,53,.04); }
+    .cero   { color: #ccc; }
 
     /* ── Nota al pie ── */
     .nota {
@@ -423,7 +436,7 @@ function generarPlanillaPDF() {
         font-style: italic;
         margin-top: 10px;
         padding-top: 8px;
-        border-top: 1px solid #ddd;
+        border-top: 1px solid #e0c8d4;
         line-height: 1.5;
     }
 
@@ -435,7 +448,7 @@ function generarPlanillaPDF() {
     }
     .firma-bloque { text-align: center; }
     .firma-linea  {
-        border-top: 1px solid #333;
+        border-top: 1.5px solid rgb(39,20,71);
         width: 220px;
         margin: 40px auto 5px;
     }
@@ -444,6 +457,7 @@ function generarPlanillaPDF() {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.4px;
+        color: rgb(39,20,71);
     }
 
     /* ── Pie del documento — fijo al fondo ── */
@@ -453,21 +467,29 @@ function generarPlanillaPDF() {
         left: 20mm;
         right: 20mm;
         padding-top: 5px;
-        border-top: 1px solid #ccc;
+        border-top: 1px solid #e0c8d4;
         display: flex;
         justify-content: space-between;
         font-size: 8px;
-        color: #aaa;
+        color: rgb(114,0,53);
+        opacity: .7;
     }
 </style>
 </head>
 <body>
 
 <div class="cabecera">
-    <div class="cab-institucion">Seguro Social Universitario</div>
-    <div class="cab-area">${rolLabel}</div>
-    <div class="cab-titulo">Historial de Cargos</div>
-    <div class="cab-fecha">Trinidad, ${fechaHoy}</div>
+    <div class="cab-left">
+        <img class="cab-logo" src="/static/img/login/LOGOSSU.png">
+        <div>
+            <div class="cab-institucion">Seguro Social Universitario</div>
+            <div class="cab-area">${rolLabel}</div>
+            <div class="cab-titulo">Historial de Cargos</div>
+        </div>
+    </div>
+    <div class="cab-right">
+        <div class="cab-fecha">Trinidad, ${fechaHoy}</div>
+    </div>
 </div>
 
 <table class="ficha">

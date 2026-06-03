@@ -398,13 +398,18 @@ document.addEventListener('DOMContentLoaded', () => {
     .bloque-header{background:rgb(39,20,71);color:#fff;padding:7px 14px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;font-weight:700;font-size:9.5px;}
     .bloque-header span:last-child{font-weight:400;opacity:0.8;}
     table{width:100%;border-collapse:collapse;font-size:9.5px;}
-    thead th{background:rgb(114,0,53);color:#fff;padding:7px 10px;text-align:center;font-weight:700;text-transform:uppercase;border:1px solid #8a003e;}
-    td{padding:8px 10px;border:1px solid #e0d0d8;text-align:center;}
-    tbody tr:nth-child(even) td{background:#fdf5f8;}
+    thead{background:linear-gradient(90deg,rgb(39,20,71),rgb(114,0,53));}
+    thead th{color:#fff;padding:7px 10px;text-align:center;font-weight:700;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);}
+    thead th:last-child{border-right:none;}
+    td{padding:8px 10px;border-bottom:1px solid #f0e6ec;text-align:center;}
+    tbody tr:nth-child(even) td{background:#fdf6fa;}
 </style></head><body>
     <div class="inst-header">
-        <div class="inst-nombre">SEGURO SOCIAL UNIVERSITARIO<br>
-            <span style="font-weight:400;font-size:10px;color:#555">${areaLabel}</span>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <img src="/static/img/login/LOGOSSU.png" style="height:54px;width:auto;">
+            <div class="inst-nombre">SEGURO SOCIAL UNIVERSITARIO<br>
+                <span style="font-weight:400;font-size:10px;color:#555">${areaLabel}</span>
+            </div>
         </div>
         <div class="inst-fecha">${fechaStr}</div>
     </div>
@@ -455,8 +460,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .planilla-titulo{text-align:center;margin-bottom:22px;}
     .planilla-titulo h2{background:rgb(39,20,71);color:#fff;display:inline-block;padding:9px 32px;font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;border-radius:4px;}
     table{width:100%;border-collapse:collapse;margin-bottom:22px;font-size:10px;}
-    th{background:rgb(39,20,71);color:#fff;padding:9px 10px;text-align:center;font-weight:700;font-size:9.5px;text-transform:uppercase;border:1px solid #555;line-height:1.4;}
-    td{padding:10px;border:1px solid #ccc;text-align:center;vertical-align:middle;font-weight:600;}
+    thead{background:linear-gradient(90deg,rgb(39,20,71),rgb(114,0,53));}
+    th{color:#fff;padding:9px 10px;text-align:center;font-weight:700;font-size:9.5px;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);line-height:1.4;}
+    th:last-child{border-right:none;}
+    td{padding:10px;border-bottom:1px solid #f0e6ec;text-align:center;vertical-align:middle;font-weight:600;}
+    tbody tr:nth-child(even) td{background:#fdf6fa;}
     td.td-nombre{text-align:left;font-weight:700;}
     td.td-total{font-size:13px;font-weight:700;color:rgb(114,0,53);background:#f8f5fb;}
     .nota-firma{font-size:9.5px;color:#555;font-style:italic;margin-bottom:16px;line-height:1.6;padding-left:12px;}
@@ -469,8 +477,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .firma-rol{font-size:9px;color:rgb(114,0,53);font-weight:600;text-transform:uppercase;margin-top:2px;}
 </style></head><body>
     <div class="inst-header">
-        <div class="inst-nombre">SEGURO SOCIAL UNIVERSITARIO<br>
-            <span style="font-weight:400;font-size:10px;color:#555">${areaLabel}</span>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <img src="/static/img/login/LOGOSSU.png" style="height:54px;width:auto;">
+            <div class="inst-nombre">SEGURO SOCIAL UNIVERSITARIO<br>
+                <span style="font-weight:400;font-size:10px;color:#555">${areaLabel}</span>
+            </div>
         </div>
         <p class="fecha-acta">${fechaStr}</p>
     </div>

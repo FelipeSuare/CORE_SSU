@@ -24,14 +24,13 @@ _NIVELES = {
 }
 
 _ROLES_EMPLOYEES  = frozenset({'RRHH', 'Administrador'})
-_ROLES_HISTORIAL  = frozenset({'Funcionario', 'Administrador', 'Auditoria'})
+_ROLES_HISTORIAL  = frozenset({'Administrador', 'Auditoria'})
 
 _ROL_LABEL = {
     'Administrador': 'ADMINISTRADOR',
-    'RRHH':          'RECURSOS HUMANOS',
     'Auditoria':     'AUDITORÍA',
 }
-_ROL_PRIORIDAD = ['Administrador', 'RRHH', 'Auditoria']
+_ROL_PRIORIDAD = ['Administrador', 'Auditoria']
 
 
 def _get_roles_usuario(request):
@@ -618,7 +617,7 @@ def historial_cargos_api(request, cod):
         })
 
     # Etiqueta del rol para el PDF
-    rol_label = 'RECURSOS HUMANOS'
+    rol_label = 'ADMINISTRACIÓN'
     for rol in _ROL_PRIORIDAD:
         if rol in roles:
             rol_label = _ROL_LABEL[rol]

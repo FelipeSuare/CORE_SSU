@@ -38,7 +38,7 @@ urlpatterns = [
     path('Solicitudes.html', vacations_views.historial_solicitudes_view, name='solicitudes'),
     path('Aprobacion.html', vacations_views.aprobacion_view, name='aprobacion'),
     path('FormularioVac.html', vacations_views.historial_rrhh_view, name='formulario_vac'),
-    path('Anulacion.html', TemplateView.as_view(template_name="vacations/Anulación.html"), name='anulacion'),
+    path('Anulacion.html', vacations_views.anulacion_view, name='anulacion'),
     path('HistorialRRHH.html', vacations_views.historial_rrhh_view, name='historial_rrhh'),
 
     # Reports
