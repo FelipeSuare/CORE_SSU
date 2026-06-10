@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
 //  Configuración desde meta-tags inyectados por Django
 // ═══════════════════════════════════════════════════════════════
-const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]').content;
-const ENDPOINT    = document.querySelector('meta[name="cambio-contrasena-url"]').content;
+const CSRF_TOKEN     = document.querySelector('meta[name="csrf-token"]').content;
+const ENDPOINT       = document.querySelector('meta[name="cambio-contrasena-url"]').content;
+const REDIRECT_POST  = document.querySelector('meta[name="redirect-post-cambio"]')?.content || null;
 
 // ═══════════════════════════════════════════════════════════════
 //  Elementos del DOM
@@ -175,6 +176,13 @@ async function cambiarContrasena() {
         }
 
         // Éxito
+        if (REDIRECT_POST) {
+            await AppDialog.alert('Contraseña actualizada correctamente. Serás redirigido al sistema.', {
+                title: 'Éxito', icon: 'check_circle', variant: 'success',
+            });
+            window.location.href = REDIRECT_POST;
+            return;
+        }
         limpiarFormulario();
         AppDialog.alert('Contraseña actualizada correctamente.', {
             title: 'Éxito', icon: 'check_circle', variant: 'success',

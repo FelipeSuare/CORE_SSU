@@ -1,5 +1,5 @@
 import logging
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import resolve, Resolver404
 
 logger = logging.getLogger('ssu.acceso_denegado')
@@ -10,19 +10,8 @@ def _obtener_roles(request) -> set:
     if hasattr(request, '_ssu_roles'):
         return request._ssu_roles
 
-    from employees.models import Funcionario
-    from accounts.models import FuncionarioRol
-    try:
-        f = Funcionario.objects.get(ci__ci=request.user.username, estado='ACTIVO')
-        roles = set(
-            FuncionarioRol.objects
-            .filter(cod_funcionario=f, activo=True)
-            .values_list('id_roles__tipo_rol', flat=True)
-        )
-    except Exception:
-        roles = set()
-
-    roles.add('Funcionario')
+    from core.roles import obtener_roles
+    roles = obtener_roles(request.user.username)
     request._ssu_roles = roles
     return roles
 
@@ -54,6 +43,10 @@ class ControlAccesoRoles:
 
         if not url_name:
             return None
+
+        # Forzar cambio de contraseña inicial antes de permitir cualquier otra acción
+        if request.session.get('debe_cambiar_contrasena') and url_name not in ('contrasena', 'login_home', 'login'):
+            return redirect('contrasena')
 
         from core.permissions import puede_acceder
         roles = _obtener_roles(request)

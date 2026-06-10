@@ -8,6 +8,7 @@
 
     <meta name="csrf-token"           content="{{ csrf_token }}">
     <meta name="cambio-contrasena-url" content="{% url 'contrasena' %}">
+    {% if forzado %}<meta name="redirect-post-cambio" content="{% url 'index' %}">{% endif %}
 
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
@@ -19,10 +20,20 @@
 
     
     <div class="container">
+        {% if not forzado %}
         <a href="/Index_Principal.html" class="back-to-menu">
             <i class="material-symbols-outlined">arrow_back</i>
             Volver
         </a>
+        {% endif %}
+
+        {% if forzado %}
+        <div class="alert" style="display:flex;background:#fff3cd;border:1px solid #ffc107;color:#856404;border-radius:8px;padding:12px 16px;gap:10px;margin-bottom:16px;align-items:center;">
+            <i class="material-symbols-outlined" style="font-size:20px;">warning</i>
+            <span>Por seguridad, debes cambiar tu contraseña inicial antes de continuar.</span>
+        </div>
+        {% endif %}
+
         <!-- Header -->
         <div class="header">
             <h1>
@@ -144,9 +155,11 @@
 
                 <!-- Botones de Acción -->
                 <div class="form-actions">
+                    {% if not forzado %}
                     <button type="button" class="btn btn-cancel" onclick="cancelar()">
                         <i class="material-symbols-outlined">close</i> Cancelar
                     </button>
+                    {% endif %}
                     <button type="submit" class="btn btn-primary">
                         <i class="material-symbols-outlined">save</i> Cambiar Contraseña
                     </button>

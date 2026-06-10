@@ -13,18 +13,21 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / '.env', encoding='utf-8', override=False)
+load_dotenv(BASE_DIR / '.env', encoding='utf-8-sig', override=False)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-l63c-xjgy*z3h3m_*9jkz%jb4_5o!ra)+_0=8bysbjrrlridnk')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY no está configurada en .env')
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 
 # Application definition
@@ -44,6 +47,9 @@ INSTALLED_APPS = [
     'vacations',
     'reports',
     'core',
+
+    # API
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -125,6 +131,29 @@ USE_I18N = True
 
 USE_TZ = True
 
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'EXCEPTION_HANDLER': 'core.api_exceptions.manejar_excepcion',
+}
+
+# Security headers
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Tests
+TEST_RUNNER = 'core.test_runner.ManagedTestRunner'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/

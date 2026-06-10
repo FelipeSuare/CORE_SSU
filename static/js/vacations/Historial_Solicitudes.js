@@ -57,7 +57,6 @@ async function cargarSolicitudes() {
 
         construirCabecera();
         actualizarContadores();
-        actualizarResumenInline();
         renderizarTabla();
 
     } catch (err) {
@@ -103,27 +102,6 @@ function actualizarContadores() {
     document.getElementById('countAprobadas').textContent  = todasLasSolicitudes.filter(s => s.estado === 'Aprobada').length;
     document.getElementById('countRechazadas').textContent = todasLasSolicitudes.filter(s => s.estado === 'Rechazada').length;
     document.getElementById('countPendientes').textContent = todasLasSolicitudes.filter(s => s.estado === 'Pendiente').length;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  RESUMEN INLINE
-// ══════════════════════════════════════════════════════════════
-function actualizarResumenInline() {
-    const { dias_usados, dias_pendientes, dias_adeudados } = resumenGlobal;
-    document.getElementById('subtituloResumen').innerHTML = `
-        <span class="resumen-inline">
-            <span class="resumen-item-usados">
-                <i class="material-symbols-outlined">check_circle</i> ${dias_usados} usados
-            </span>
-            <span class="resumen-sep">·</span>
-            <span class="resumen-item-pend">
-                <i class="material-symbols-outlined">schedule</i> ${dias_pendientes} pendientes
-            </span>
-            <span class="resumen-sep">·</span>
-            <span class="resumen-item-rest">
-                <i class="material-symbols-outlined">calendar_month</i> ${dias_adeudados} disponibles
-            </span>
-        </span>`;
 }
 
 // ══════════════════════════════════════════════════════════════

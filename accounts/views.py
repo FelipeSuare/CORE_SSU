@@ -25,6 +25,13 @@ def login_view(request):
         user = authenticate(request, username=usuario, password=contrasena)
         if user is not None:
             login(request, user)
+            try:
+                func = Funcionario.objects.get(ci__ci=user.username)
+                if func.contrasena_hash == '1234567':
+                    request.session['debe_cambiar_contrasena'] = True
+                    return redirect('contrasena')
+            except Funcionario.DoesNotExist:
+                pass
             return redirect('index')
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')
@@ -194,7 +201,8 @@ def _verificar_contrasena(ingresada, almacenada):
 @login_required(login_url='login_home')
 def cambiar_contrasena_view(request):
     if request.method == 'GET':
-        return render(request, 'accounts/Seguridad.html')
+        forzado = request.session.get('debe_cambiar_contrasena', False)
+        return render(request, 'accounts/Seguridad.html', {'forzado': forzado})
 
     if request.method == 'POST':
         try:
@@ -241,6 +249,9 @@ def cambiar_contrasena_view(request):
         request.user.set_password(nueva)
         request.user.save()
         update_session_auth_hash(request, request.user)
+
+        # Limpiar flag de cambio forzado si estaba activo
+        request.session.pop('debe_cambiar_contrasena', None)
 
         return JsonResponse({'ok': True})
 

@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/shared/profile-switcher.css' %}">
-    <link rel="stylesheet" href="{% static 'css/vacations/Historial_Solicitudes.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vacations/Historial_Solicitudes.css' %}?v=2">
     <link rel="stylesheet" href="{% static 'css/shared/notifications.css' %}">
 </head>
 <body>
@@ -52,20 +52,6 @@
     <!-- ── CARD PRINCIPAL ── -->
     <div class="table-card">
 
-        <!-- CARD HEADER: título + resumen + botón descarga -->
-        {% comment %} <div class="table-card-header">
-            <div class="card-left">
-                <div class="card-title-block">
-                    <span class="card-title">Historial de Solicitudes</span>
-                    <span class="card-subtitle" id="subtituloResumen">—</span>
-                </div>
-            </div>
-            <button class="btn btn-download" onclick="generarPlanillaPDF()">
-                <i class="material-symbols-outlined">download</i>
-                Descargar
-            </button>
-        </div> {% endcomment %}
-
         <!-- TABS + BÚSQUEDA -->
         <div class="tabs-container">
             <button class="tab active" onclick="cambiarTab(this, 'todas')">
@@ -107,7 +93,7 @@
 </div>
 
 <script src="{% static 'js/shared/profile-switcher.js' %}"></script>
-<script src="{% static 'js/vacations/Historial_Solicitudes.js' %}"></script>
+<script src="{% static 'js/vacations/Historial_Solicitudes.js' %}?v=2"></script>
 <script src="{% static 'js/shared/notifications.js' %}"></script>
 </body>
 </html>
