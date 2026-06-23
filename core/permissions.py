@@ -43,9 +43,9 @@ URL_ABIERTAS: frozenset = _F([
     'vac_mis_solicitudes', 'vac_seguimiento',
     'vac_para_aprobar', 'vac_decision',
     'vac_historial_rrhh', 'vac_pdf',
-    'feriados_lista', 'feriados_agregar', 'feriados_editar', 'feriados_eliminar',
-    'funcionarios_lista', 'funcionarios_aprobadores', 'funcionarios_nuevo',
-    'funcionarios_exportar', 'funcionarios_editar', 'funcionarios_estado',
+    'feriados_lista',
+    'funcionarios_lista', 'funcionarios_aprobadores', 'funcionarios_exportar',
+    'funcionarios_buscar',
 ])
 
 # Orden de prioridad de roles para la UI (el primero encontrado = rol principal)

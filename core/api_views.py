@@ -5,9 +5,12 @@ from rest_framework import status
 
 from core.models import Feriado
 from core.serializers import FeriadoSerializer
+from core.api_permissions import NoCambioPendiente, EsRRHH, EsFuncionarioActivo
 
 
 class FeriadosListView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         anio = request.GET.get('anio', '').strip()
         tipo = request.GET.get('tipo', 'Todos').strip()
@@ -37,6 +40,8 @@ class FeriadosListView(APIView):
 
 
 class FeriadosCreateView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request):
         serializer = FeriadoSerializer(data=request.data)
         if not serializer.is_valid():
@@ -73,6 +78,8 @@ class FeriadosCreateView(APIView):
 
 
 class FeriadoEditView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request, id_feriado):
         try:
             feriado = Feriado.objects.get(id_feriado=id_feriado)
@@ -109,6 +116,8 @@ class FeriadoEditView(APIView):
 
 
 class FeriadoDeleteView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request, id_feriado):
         try:
             feriado = Feriado.objects.get(id_feriado=id_feriado)

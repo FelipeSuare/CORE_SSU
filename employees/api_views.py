@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 from django.contrib.auth.models import User
@@ -8,9 +9,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import UnidadOrganizacional
+from core.api_permissions import NoCambioPendiente, EsRRHH, EsFuncionarioActivo, EsAuditoria
 from employees.models import Persona, Funcionario, HistorialCargo
 from accounts.models import Roles, FuncionarioRol
 from vacations.models import GestionVacacion, JerarquiaAprobacion
+
+logger = logging.getLogger(__name__)
 
 _NIVELES = {
     'PERSONAL DE AREA':      3,
@@ -23,6 +27,9 @@ _NIVELES = {
 
 _ROLES_EMPLOYEES = frozenset({'RRHH', 'Administrador'})
 _ROLES_HISTORIAL = frozenset({'Administrador', 'Auditoria'})
+
+_SEXOS_VALIDOS = frozenset({'Masculino', 'Femenino'})
+_TIPOS_FUNCIONARIO_VALIDOS = frozenset(_NIVELES.keys())
 
 _ROL_LABEL = {
     'Administrador': 'ADMINISTRACIÓN',
@@ -56,7 +63,7 @@ def _siguiente_cod_funcionario():
         return str(cur.fetchone()[0])
 
 
-def _serializar_funcionario(f):
+def _serializar_funcionario(f, datos_sensibles=False):
     p = f.ci
     cargo_act = HistorialCargo.objects.filter(cod_funcionario=f, es_actual=True).first()
     if not cargo_act:
@@ -76,15 +83,13 @@ def _serializar_funcionario(f):
         ).select_related('cod_aprobador__ci').order_by('nivel_aprobacion')
     ]
     fecha_baja = f.fecha_baja.strftime('%Y-%m-%d') if f.fecha_baja else ''
-    return {
+    data = {
         'cod':              f.cod_funcionario,
         'ci':               p.ci,
         'nombre':           p.nombre,
         'ap_paterno':       p.ap_paterno,
         'ap_materno':       p.ap_materno or '',
-        'fecha_nacimiento': p.fecha_nacimiento.strftime('%Y-%m-%d') if p.fecha_nacimiento else '',
         'sexo':             p.sexo,
-        'matricula_seguro': f.matricula_seguro or '',
         'cargo':            cargo_act.cargo if cargo_act else '',
         'tipo_contrato':    cargo_act.tipo_contrato if cargo_act else '',
         'unidad':           f.id_unidad.nombre,
@@ -97,18 +102,25 @@ def _serializar_funcionario(f):
         'roles':            roles,
         'jerarquia':        jerarquia,
     }
+    if datos_sensibles:
+        data['fecha_nacimiento'] = p.fecha_nacimiento.strftime('%Y-%m-%d') if p.fecha_nacimiento else ''
+        data['matricula_seguro'] = f.matricula_seguro or ''
+    return data
 
 
 class ListarFuncionariosView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         estado = request.GET.get('estado', 'ACTIVO').upper()
         q      = request.GET.get('q', '').strip().lower()
 
         qs = Funcionario.objects.select_related('ci', 'id_unidad').filter(estado=estado)
 
+        es_rrhh = EsRRHH().has_permission(request, self)
         resultado = []
         for f in qs:
-            datos = _serializar_funcionario(f)
+            datos = _serializar_funcionario(f, datos_sensibles=es_rrhh)
             if q:
                 buscar = f"{datos['ci']} {datos['nombre']} {datos['ap_paterno']} {datos['ap_materno']} {datos['cargo']}".lower()
                 if q not in buscar:
@@ -119,6 +131,8 @@ class ListarFuncionariosView(APIView):
 
 
 class AprobadoresView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def get(self, request):
         excluir = request.GET.get('excluir', None)
 
@@ -157,6 +171,8 @@ class AprobadoresView(APIView):
 
 
 class NuevoFuncionarioView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request):
         data = request.data
 
@@ -181,6 +197,19 @@ class NuevoFuncionarioView(APIView):
                 {'error': 'Todos los campos obligatorios deben completarse.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if sexo not in _SEXOS_VALIDOS:
+            return Response({'error': 'Sexo inválido. Valores aceptados: Masculino, Femenino.'}, status=status.HTTP_400_BAD_REQUEST)
+        if tipo_func not in _TIPOS_FUNCIONARIO_VALIDOS:
+            return Response({'error': 'Tipo de funcionario inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(ci) > 20:
+            return Response({'error': 'CI demasiado largo (máx. 20 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(nombres) > 50 or len(ap_paterno) > 50 or len(ap_materno) > 50:
+            return Response({'error': 'Nombre o apellido supera la longitud máxima permitida (50 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(cargo) > 100:
+            return Response({'error': 'El cargo supera la longitud máxima (100 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(tipo_contrato) > 30:
+            return Response({'error': 'El tipo de contrato supera la longitud máxima (30 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
 
         if Persona.objects.filter(ci=ci).exists():
             return Response(
@@ -234,7 +263,10 @@ class NuevoFuncionarioView(APIView):
                         pass
                 for j in jerarquia:
                     aprobador_cod = j.get('aprobador_cod', '').strip()
-                    nivel         = int(j.get('nivel', 0))
+                    try:
+                        nivel = int(j.get('nivel', 0))
+                    except (ValueError, TypeError):
+                        continue
                     if not aprobador_cod or not nivel:
                         continue
                     try:
@@ -251,9 +283,10 @@ class NuevoFuncionarioView(APIView):
                 from vacations.utils import poblar_gestion_vacacion
                 poblar_gestion_vacacion(funcionario)
 
-        except IntegrityError as e:
+        except IntegrityError:
+            logger.exception('IntegrityError en operación de funcionario')
             return Response(
-                {'error': f'Error de base de datos: {e}'},
+                {'error': 'El registro no pudo guardarse. Verifique que los datos no estén duplicados.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -261,6 +294,8 @@ class NuevoFuncionarioView(APIView):
 
 
 class EditarFuncionarioView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request, cod):
         try:
             funcionario = Funcionario.objects.select_related('ci', 'id_unidad').get(cod_funcionario=cod)
@@ -289,6 +324,17 @@ class EditarFuncionarioView(APIView):
                 {'error': 'Todos los campos obligatorios deben completarse.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if sexo not in _SEXOS_VALIDOS:
+            return Response({'error': 'Sexo inválido. Valores aceptados: Masculino, Femenino.'}, status=status.HTTP_400_BAD_REQUEST)
+        if tipo_func not in _TIPOS_FUNCIONARIO_VALIDOS:
+            return Response({'error': 'Tipo de funcionario inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(nombres) > 50 or len(ap_paterno) > 50 or len(ap_materno) > 50:
+            return Response({'error': 'Nombre o apellido supera la longitud máxima permitida (50 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(cargo) > 100:
+            return Response({'error': 'El cargo supera la longitud máxima (100 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(tipo_contrato) > 30:
+            return Response({'error': 'El tipo de contrato supera la longitud máxima (30 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             fecha_nac = date.fromisoformat(fecha_nac_str)
@@ -372,7 +418,10 @@ class EditarFuncionarioView(APIView):
 
                 for j in jerarquia:
                     aprobador_cod = j.get('aprobador_cod', '').strip()
-                    nivel         = int(j.get('nivel', 0))
+                    try:
+                        nivel = int(j.get('nivel', 0))
+                    except (ValueError, TypeError):
+                        continue
                     if not aprobador_cod or not nivel:
                         continue
                     actual = JerarquiaAprobacion.objects.filter(
@@ -406,9 +455,10 @@ class EditarFuncionarioView(APIView):
                     cod_funcionario=funcionario, nivel_aprobacion__gt=nivel_max, activo=True,
                 ).update(activo=False, fecha_fin=hoy)
 
-        except IntegrityError as e:
+        except IntegrityError:
+            logger.exception('IntegrityError en operación de funcionario')
             return Response(
-                {'error': f'Error de base de datos: {e}'},
+                {'error': 'El registro no pudo guardarse. Verifique que los datos no estén duplicados.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -416,6 +466,8 @@ class EditarFuncionarioView(APIView):
 
 
 class ToggleEstadoView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request, cod):
         try:
             f = Funcionario.objects.get(cod_funcionario=cod)
@@ -491,8 +543,10 @@ class ToggleEstadoView(APIView):
 
 
 class BuscarFuncionariosView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
-        q = request.GET.get('q', '').strip()
+        q = request.GET.get('q', '').strip()[:100]
         if len(q) < 2:
             return Response({'funcionarios': []})
 
@@ -519,6 +573,8 @@ class BuscarFuncionariosView(APIView):
 
 
 class HistorialCargosView(APIView):
+    permission_classes = [NoCambioPendiente, EsAuditoria]
+
     def get(self, request, cod):
         from core.roles import obtener_roles
 
@@ -755,6 +811,8 @@ def _generar_pdf_vacaciones_baja(f, gv, cargo):
 
 
 class VacacionesBajaPDFView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def get(self, request, cod):
         from django.http import HttpResponse as DjangoHttpResponse
 

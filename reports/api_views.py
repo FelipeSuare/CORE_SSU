@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.api_permissions import EsAuditoria
+from core.api_permissions import NoCambioPendiente, EsAuditoria
 from core.models import UnidadOrganizacional
 from accounts.models import FuncionarioRol
 from employees.models import Funcionario, HistorialCargo
@@ -46,6 +46,8 @@ def _get_funcionario_y_roles(username):
 
 
 class UnidadesReporteView(APIView):
+    permission_classes = [NoCambioPendiente, EsAuditoria]
+
     def get(self, request):
         try:
             _, roles = _get_funcionario_y_roles(request.user.username)
@@ -68,6 +70,8 @@ class UnidadesReporteView(APIView):
 
 
 class FuncionariosReporteView(APIView):
+    permission_classes = [NoCambioPendiente, EsAuditoria]
+
     def get(self, request):
         try:
             _, roles = _get_funcionario_y_roles(request.user.username)
@@ -147,6 +151,8 @@ class FuncionariosReporteView(APIView):
 
 
 class HistorialReporteView(APIView):
+    permission_classes = [NoCambioPendiente, EsAuditoria]
+
     def get(self, request):
         try:
             _, roles = _get_funcionario_y_roles(request.user.username)

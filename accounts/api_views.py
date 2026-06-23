@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 
+from core.api_permissions import NoCambioPendiente, EsFuncionarioActivo
 from employees.models import Persona, Funcionario
 from accounts.models import FuncionarioRol
 
@@ -30,6 +31,8 @@ def _incrementar_intentos_rec(ci):
 
 
 class EliminarFotoView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def post(self, request):
         try:
             persona = Persona.objects.get(ci=request.user.username)
@@ -42,6 +45,8 @@ class EliminarFotoView(APIView):
 
 
 class MiPerfilView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         try:
             f = Funcionario.objects.select_related('ci').get(

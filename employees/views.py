@@ -28,6 +28,10 @@ def historial_cargos_view(request):
 
 @login_required(login_url='login_home')
 def exportar_funcionarios(request):
+    roles = obtener_roles(request.user.username)
+    if not (roles & _ROLES_EMPLOYEES):
+        return render(request, 'shared/sin_acceso.html', status=403)
+
     unidad = request.GET.get('unidad', '').strip()
     cargo  = request.GET.get('cargo', '').strip().lower()
     estado = request.GET.get('estado', '').strip().upper()

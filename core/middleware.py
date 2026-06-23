@@ -4,6 +4,10 @@ from django.urls import resolve, Resolver404
 
 logger = logging.getLogger('ssu.acceso_denegado')
 
+_URLS_PUBLICAS = frozenset({
+    'login', 'login_home', 'recuperar', 'recuperar_verificar', 'recuperar_nueva',
+})
+
 
 def _obtener_roles(request) -> set:
     """Obtiene los roles del usuario y los cachea en request._ssu_roles."""
@@ -19,6 +23,7 @@ def _obtener_roles(request) -> set:
 class ControlAccesoRoles:
     """
     Verifica permisos de rol antes de despachar cada vista HTML.
+    - Redirige al login si el usuario no está autenticado (excepto URLs públicas).
     - Bloquea el acceso si el usuario no tiene el rol requerido.
     - Registra el intento en log y en la tabla intentos_acceso.
     """
@@ -33,13 +38,16 @@ class ControlAccesoRoles:
         return self.get_response(request)
 
     def _verificar(self, request):
-        if not request.user.is_authenticated:
-            return None
-
         try:
             url_name = resolve(request.path_info).url_name
         except Resolver404:
             return None
+
+        if not request.user.is_authenticated:
+            # Dejar pasar URLs públicas, admin y archivos estáticos
+            if url_name in _URLS_PUBLICAS or request.path_info.startswith(('/admin/', '/static/', '/media/')):
+                return None
+            return redirect('login_home')
 
         if not url_name:
             return None

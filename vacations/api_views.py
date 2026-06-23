@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import Feriado, UnidadOrganizacional
-from core.api_permissions import EsRRHH, EsAprobador
+from core.api_permissions import NoCambioPendiente, EsRRHH, EsAprobador, EsFuncionarioActivo
 from employees.models import Funcionario, HistorialCargo
 from accounts.models import FuncionarioRol
 from vacations.models import (
@@ -161,6 +161,8 @@ def _check_acceso_historial(request):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class DatosFormularioView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         try:
             f = _get_funcionario(request)
@@ -225,6 +227,8 @@ class DatosFormularioView(APIView):
 
 
 class CalcularRetornoView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def post(self, request):
         fecha_salida_str = request.data.get('fecha_salida', '').strip()
         dias_str         = str(request.data.get('dias_solicitados', '')).strip()
@@ -269,6 +273,8 @@ class CalcularRetornoView(APIView):
 
 
 class CrearSolicitudView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def post(self, request):
         fecha_salida_str  = request.data.get('fecha_salida', '').strip()
         fecha_retorno_str = request.data.get('fecha_retorno', '').strip()
@@ -281,6 +287,11 @@ class CrearSolicitudView(APIView):
         if len(motivo) < 10:
             return Response(
                 {'error': 'El motivo debe tener al menos 10 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(motivo) > 500:
+            return Response(
+                {'error': 'El motivo no puede superar los 500 caracteres.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -376,6 +387,8 @@ class CrearSolicitudView(APIView):
 
 
 class MisSolicitudesView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         try:
             f = _get_funcionario(request)
@@ -465,6 +478,8 @@ class MisSolicitudesView(APIView):
 
 
 class SeguimientoSolicitudView(APIView):
+    permission_classes = [NoCambioPendiente, EsFuncionarioActivo]
+
     def get(self, request):
         try:
             f = _get_funcionario(request)
@@ -559,6 +574,8 @@ class SeguimientoSolicitudView(APIView):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class SolicitudesParaAprobarView(APIView):
+    permission_classes = [NoCambioPendiente, EsAprobador]
+
     def get(self, request):
         try:
             aprobador = _get_funcionario(request)
@@ -724,8 +741,13 @@ class SolicitudesParaAprobarView(APIView):
 
 
 class RegistrarDecisionView(APIView):
+    permission_classes = [NoCambioPendiente, EsAprobador]
+
     def post(self, request):
-        id_formulario = request.data.get('id_formulario')
+        try:
+            id_formulario = int(request.data.get('id_formulario'))
+        except (TypeError, ValueError):
+            return Response({'error': 'id_formulario inválido.'}, status=status.HTTP_400_BAD_REQUEST)
         decision      = str(request.data.get('decision', '')).upper().strip()
         observacion   = request.data.get('observacion', '').strip()
 
@@ -846,6 +868,8 @@ class RegistrarDecisionView(APIView):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class AcreditarGestionView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request):
         try:
             _, roles = _get_usuario_rrhh(request)
@@ -939,6 +963,8 @@ class AcreditarGestionView(APIView):
 
 
 class InicializarVacacionesView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request):
         try:
             _, roles = _get_usuario_rrhh(request)
@@ -992,6 +1018,8 @@ class InicializarVacacionesView(APIView):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class HistorialRRHHView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def get(self, request):
         tiene_acceso, f_user = _check_acceso_historial(request)
         if not tiene_acceso:
@@ -1096,6 +1124,8 @@ class HistorialRRHHView(APIView):
 
 
 class DescargarPDFView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def get(self, request, id_formulario):
         tiene_acceso, _ = _check_acceso_historial(request)
         if not tiene_acceso:
@@ -1124,6 +1154,8 @@ class DescargarPDFView(APIView):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class SolicitudesAnulacionView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def get(self, request):
         tiene_acceso, f_user = _check_acceso_historial(request)
         if not tiene_acceso:
@@ -1190,6 +1222,8 @@ class SolicitudesAnulacionView(APIView):
 
 
 class RegistrarAnulacionView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
     def post(self, request):
         tiene_acceso, f_rrhh = _check_acceso_historial(request)
         if not tiene_acceso:
@@ -1208,6 +1242,11 @@ class RegistrarAnulacionView(APIView):
         if not observaciones or len(observaciones) < 20:
             return Response(
                 {'error': 'Las observaciones deben tener al menos 20 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(observaciones) > 1000 or len(motivo_anulacion) > 500:
+            return Response(
+                {'error': 'El texto supera la longitud máxima permitida.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

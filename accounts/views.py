@@ -18,12 +18,33 @@ _PATRON_CONTRASENA = re.compile(
 )
 
 
+_LOGIN_MAX_INTENTOS = 5
+_LOGIN_BLOQUEO_SEGUNDOS = 15 * 60  # 15 minutos
+
+
+def _clave_login(usuario):
+    return f'login_intentos_{usuario}', f'login_bloqueado_{usuario}'
+
+
 def login_view(request):
     if request.method == 'POST':
-        usuario = request.POST.get('username')
-        contrasena = request.POST.get('password')
+        usuario    = (request.POST.get('username') or '').strip()
+        contrasena = request.POST.get('password') or ''
+
+        if not usuario:
+            messages.error(request, 'Usuario o contraseña incorrectos.')
+            return redirect('login_home')
+
+        clave_intentos, clave_bloqueo = _clave_login(usuario)
+
+        if cache.get(clave_bloqueo):
+            messages.error(request, 'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente en 15 minutos.')
+            return redirect('login_home')
+
         user = authenticate(request, username=usuario, password=contrasena)
         if user is not None:
+            cache.delete(clave_intentos)
+            cache.delete(clave_bloqueo)
             login(request, user)
             try:
                 func = Funcionario.objects.get(ci__ci=user.username)
@@ -34,7 +55,15 @@ def login_view(request):
                 pass
             return redirect('index')
         else:
-            messages.error(request, 'Usuario o contraseña incorrectos.')
+            intentos = (cache.get(clave_intentos) or 0) + 1
+            if intentos >= _LOGIN_MAX_INTENTOS:
+                cache.set(clave_bloqueo, True, _LOGIN_BLOQUEO_SEGUNDOS)
+                cache.delete(clave_intentos)
+                messages.error(request, 'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente en 15 minutos.')
+            else:
+                cache.set(clave_intentos, intentos, _LOGIN_BLOQUEO_SEGUNDOS)
+                restantes = _LOGIN_MAX_INTENTOS - intentos
+                messages.error(request, f'Usuario o contraseña incorrectos. Intentos restantes: {restantes}.')
             return redirect('login_home')
     return render(request, 'accounts/loging.html')
 
@@ -65,14 +94,23 @@ def _icono_para_rol(nombre_rol):
     return 'badge'
 
 
+_FIRMAS_IMAGEN = (
+    (b'\xff\xd8\xff',       'image/jpeg'),
+    (b'\x89PNG\r\n\x1a\n',  'image/png'),
+    (b'GIF87a',             'image/gif'),
+    (b'GIF89a',             'image/gif'),
+)
+
+
 def _detectar_content_type(data):
-    if data[:3] == b'\xff\xd8\xff':
-        return 'image/jpeg'
-    if data[:8] == b'\x89PNG\r\n\x1a\n':
-        return 'image/png'
-    if data[:6] in (b'GIF87a', b'GIF89a'):
-        return 'image/gif'
-    return 'image/jpeg'
+    for firma, mime in _FIRMAS_IMAGEN:
+        if data[:len(firma)] == firma:
+            return mime
+    return None
+
+
+def _es_imagen_valida(data: bytes) -> bool:
+    return _detectar_content_type(data) is not None
 
 
 @login_required(login_url='login_home')
@@ -158,17 +196,19 @@ def foto_perfil(request):
         if not persona.foto:
             return HttpResponse(status=404)
         foto_bytes = bytes(persona.foto)
-        return HttpResponse(foto_bytes, content_type=_detectar_content_type(foto_bytes))
+        mime = _detectar_content_type(foto_bytes) or 'image/jpeg'
+        return HttpResponse(foto_bytes, content_type=mime)
 
     if request.method == 'POST':
         archivo = request.FILES.get('foto')
         if not archivo:
             return JsonResponse({'error': 'No se recibió ningún archivo.'}, status=400)
-        if not archivo.content_type.startswith('image/'):
-            return JsonResponse({'error': 'Solo se aceptan imágenes (JPG, PNG, GIF).'}, status=400)
         if archivo.size > 5 * 1024 * 1024:
             return JsonResponse({'error': 'La imagen supera el límite de 5MB.'}, status=400)
-        persona.foto = archivo.read()
+        datos = archivo.read()
+        if not _es_imagen_valida(datos):
+            return JsonResponse({'error': 'El archivo no es una imagen válida (JPG, PNG o GIF).'}, status=400)
+        persona.foto = datos
         persona.save(update_fields=['foto'])
         return JsonResponse({'ok': True})
 

@@ -4,6 +4,7 @@ URL configuration for config project.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
+from django.contrib.auth.decorators import login_required
 from accounts import views as accounts_views
 from core import views as core_views
 from employees import views as employees_views
@@ -20,7 +21,7 @@ urlpatterns = [
     path('', include('vacations.urls')),
     path('', include('reports.urls')),
     path('loging.html', TemplateView.as_view(template_name="accounts/loging.html"), name='login'),
-    path('Index_Principal.html', TemplateView.as_view(template_name="dashboard/Index_Principal.html"), name='index'),
+    path('Index_Principal.html', login_required(TemplateView.as_view(template_name="dashboard/Index_Principal.html"), login_url='login_home'), name='index'),
 
     # Accounts
     path('Perfil.html', accounts_views.perfil_view, name='perfil'),
