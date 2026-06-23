@@ -1,0 +1,18 @@
+import os
+from datetime import datetime
+from django import template
+from django.contrib.staticfiles.finders import find
+from django.templatetags.static import static
+
+register = template.Library()
+
+
+@register.simple_tag
+def staticv(path):
+    url = static(path)
+    file_path = find(path)
+    if file_path and os.path.exists(file_path):
+        mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
+        version = mtime.strftime("%m%d%y")
+        return f"{url}?v={version}"
+    return url

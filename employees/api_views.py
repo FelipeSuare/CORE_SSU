@@ -470,14 +470,22 @@ class ToggleEstadoView(APIView):
             f.tipo_baja  = None
             f.estado     = nuevo_estado
 
+            nueva_fecha_ingreso = None
             if fecha_ingreso_str:
                 try:
-                    f.fecha_ingreso = date.fromisoformat(fecha_ingreso_str)
+                    nueva_fecha_ingreso = date.fromisoformat(fecha_ingreso_str)
+                    f.fecha_ingreso = nueva_fecha_ingreso
                     campos.append('fecha_ingreso')
                 except ValueError:
                     pass
 
             f.save(update_fields=campos)
+
+            if nueva_fecha_ingreso:
+                from vacations.models import GestionVacacion
+                from vacations.utils import poblar_gestion_vacacion
+                GestionVacacion.objects.filter(cod_funcionario=f).delete()
+                poblar_gestion_vacacion(f)
 
         return Response({'ok': True, 'estado': f.estado})
 
