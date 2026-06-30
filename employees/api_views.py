@@ -39,18 +39,6 @@ _ROL_LABEL = {
 _ROL_PRIORIDAD = ['Administrador', 'Auditoria']
 
 
-def _calcular_antiguedad(fecha_ingreso):
-    if not fecha_ingreso:
-        return '-'
-    hoy = date.today()
-    a = hoy.year - fecha_ingreso.year
-    m = hoy.month - fecha_ingreso.month
-    if m < 0:
-        a -= 1
-        m += 12
-    return f"{a}a {m}m"
-
-
 def _siguiente_cod_funcionario():
     with connection.cursor() as cur:
         cur.execute("""
@@ -62,6 +50,19 @@ def _siguiente_cod_funcionario():
             FROM funcionario
         """)
         return str(cur.fetchone()[0])
+
+
+def _calcular_antiguedad(fecha_ingreso):
+    if not fecha_ingreso:
+        return '-'
+    hoy = date.today()
+    a = hoy.year - fecha_ingreso.year
+    m = hoy.month - fecha_ingreso.month
+    if m < 0:
+        a -= 1
+        m += 12
+    return f"{a}a {m}m"
+
 
 
 def _serializar_funcionario(f, datos_sensibles=False):
@@ -236,6 +237,7 @@ class NuevoFuncionarioView(APIView):
             roles_nombres.insert(0, 'Funcionario')
 
         cod = None
+        matricula = None
         try:
             with transaction.atomic():
                 persona = Persona.objects.create(
@@ -243,12 +245,14 @@ class NuevoFuncionarioView(APIView):
                     ap_materno=ap_materno or None,
                     fecha_nacimiento=fecha_nac, sexo=sexo,
                 )
-                cod = _siguiente_cod_funcionario()
+                from employees.utils import generar_matricula_seguro
+                cod      = _siguiente_cod_funcionario()
+                matricula = generar_matricula_seguro(persona)
                 funcionario = Funcionario.objects.create(
                     cod_funcionario=cod, ci=persona, id_unidad=unidad,
                     fecha_ingreso=fecha_ing, tipo_funcionario=tipo_func,
                     estado='ACTIVO', contrasena_hash='1234567',
-                    matricula_seguro=matricula_seguro,
+                    matricula_seguro=matricula,
                 )
                 HistorialCargo.objects.create(
                     cod_funcionario=funcionario, cargo=cargo,
@@ -291,7 +295,7 @@ class NuevoFuncionarioView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response({'ok': True, 'cod': cod}, status=status.HTTP_201_CREATED)
+        return Response({'ok': True, 'cod': cod, 'matricula_seguro': matricula}, status=status.HTTP_201_CREATED)
 
 
 class EditarFuncionarioView(APIView):

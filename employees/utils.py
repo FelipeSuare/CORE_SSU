@@ -1,6 +1,63 @@
+import unicodedata
 from datetime import date
 
 from django.db import transaction
+
+# Femenino: mes + 49  →  enero=50, febrero=51, ..., abril=53, ..., diciembre=61
+# (Ejemplo del spec: Fátima Carmela, nacida 20/04/1980 → código 53 para abril femenino)
+_OFFSET_MES_FEMENINO = 49
+
+
+def _inicial(texto: str) -> str:
+    """Primera letra del texto, mayúscula, sin diacríticos."""
+    texto = (texto or '').strip()
+    if not texto:
+        return ''
+    base = ''.join(
+        c for c in unicodedata.normalize('NFD', texto[0])
+        if unicodedata.category(c) != 'Mn'
+    )
+    return base.upper()
+
+
+def generar_matricula_seguro(persona) -> str:
+    """
+    Genera la matrícula del seguro social a partir de los datos de la Persona:
+
+      [2 últimos dígitos año nacimiento]
+      [2 dígitos mes  — masculino 01-12, femenino 50-61]
+      [2 dígitos día]
+      [inicial ap_paterno][inicial ap_materno][inicial 1er nombre][inicial 2do nombre?]
+
+    Si la matrícula ya existe agrega sufijo numérico (2, 3, ...) hasta encontrar una libre.
+    """
+    from employees.models import Funcionario
+
+    fn   = persona.fecha_nacimiento
+    anio = str(fn.year)[-2:]
+    dia  = str(fn.day).zfill(2)
+
+    if persona.sexo == 'Femenino':
+        mes = str(fn.month + _OFFSET_MES_FEMENINO).zfill(2)
+    else:
+        mes = str(fn.month).zfill(2)
+
+    ini_pat = _inicial(persona.ap_paterno)
+    ini_mat = _inicial(persona.ap_materno or '')
+
+    palabras = (persona.nombre or '').split()
+    ini_nom1 = _inicial(palabras[0]) if palabras else ''
+    ini_nom2 = _inicial(palabras[1]) if len(palabras) > 1 else ''
+
+    base = f"{anio}{mes}{dia}{ini_pat}{ini_mat}{ini_nom1}{ini_nom2}"
+
+    if not Funcionario.objects.filter(matricula_seguro=base).exists():
+        return base
+
+    sufijo = 2
+    while Funcionario.objects.filter(matricula_seguro=f"{base}{sufijo}").exists():
+        sufijo += 1
+    return f"{base}{sufijo}"
 
 
 def reasignar_aprobador(old_aprobador, new_aprobador, hoy=None):

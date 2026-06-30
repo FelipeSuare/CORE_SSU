@@ -710,7 +710,9 @@ document.getElementById('funcionarioForm').addEventListener('submit', async e =>
         cancelarFormulario();
         cargarTabla();
         AppDialog.alert(
-            editandoCod ? 'Funcionario actualizado correctamente.' : 'Funcionario registrado correctamente.',
+            editandoCod
+                ? 'Funcionario actualizado correctamente.'
+                : `Funcionario registrado correctamente.\nMatrícula asignada: ${data.matricula_seguro}`,
             { title: 'Guardado', icon: 'check_circle', variant: 'success' }
         );
     } catch {
