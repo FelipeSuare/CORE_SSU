@@ -288,6 +288,14 @@ class NuevoFuncionarioView(APIView):
                 from vacations.utils import poblar_gestion_vacacion
                 poblar_gestion_vacacion(funcionario)
 
+                if tipo_func in _TIPOS_GERENTE:
+                    from employees.utils import reasignar_aprobador
+                    old_gerentes = Funcionario.objects.filter(
+                        tipo_funcionario=tipo_func
+                    ).exclude(cod_funcionario=funcionario.cod_funcionario)
+                    for old_g in old_gerentes:
+                        reasignar_aprobador(old_g, funcionario, date.today())
+
         except IntegrityError:
             logger.exception('IntegrityError en operación de funcionario')
             return Response(

@@ -209,6 +209,14 @@ class DatosFormularioView(APIView):
         if 'Funcionario' not in roles_activos:
             roles_activos.insert(0, 'Funcionario')
 
+        sin_jefe_area = False
+        if f.tipo_funcionario == 'PERSONAL DE AREA':
+            tiene_jefe = JerarquiaAprobacion.objects.filter(
+                cod_funcionario=f, activo=True,
+                cod_aprobador__tipo_funcionario='JEFE AREA',
+            ).exists()
+            sin_jefe_area = not tiene_jefe
+
         return Response({
             'cod_funcionario':      f.cod_funcionario,
             'nombre_completo':      f"{p.nombre} {p.ap_paterno} {p.ap_materno or ''}".strip(),
@@ -226,6 +234,7 @@ class DatosFormularioView(APIView):
             'roles':                roles_activos,
             'anios_antiguedad':     anios,
             'dias_correspondientes': dias_correspondientes,
+            'sin_jefe_area':        sin_jefe_area,
         })
 
 
@@ -1337,4 +1346,101 @@ class RegistrarAnulacionView(APIView):
             'ok':             True,
             'tipo':           tipo_anulacion,
             'dias_devueltos': float(dias_devolver),
+        })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MÓDULO: SOLICITUDES RECHAZADAS (RRHH)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SolicitudesRechazadasView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
+    def get(self, request):
+        tiene_acceso, f_user = _check_acceso_historial(request)
+        if not tiene_acceso:
+            return Response({'error': 'Sin acceso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        unidad_id = request.GET.get('unidad', '').strip()
+        nombre_b  = request.GET.get('funcionario', '').strip()
+
+        qs = SolicitudVacacion.objects.filter(estado='RECHAZADA').select_related(
+            'cod_funcionario__ci', 'cod_funcionario__id_unidad'
+        ).order_by('-fecha_solicitud')
+
+        if unidad_id:
+            qs = qs.filter(cod_funcionario__id_unidad=unidad_id)
+        if nombre_b:
+            qs = qs.filter(
+                Q(cod_funcionario__ci__nombre__icontains=nombre_b) |
+                Q(cod_funcionario__ci__ap_paterno__icontains=nombre_b)
+            )
+
+        sol_list  = list(qs)
+        sol_ids   = [s.id_formulario for s in sol_list]
+        cod_funcs = list({s.cod_funcionario_id for s in sol_list})
+
+        cargos = {
+            h.cod_funcionario_id: h
+            for h in HistorialCargo.objects.filter(cod_funcionario__in=cod_funcs, es_actual=True)
+        }
+
+        aprobaciones_por_sol = {}
+        for ap in AprobacionSolicitud.objects.filter(
+            id_formulario__in=sol_ids
+        ).select_related('cod_aprobador__ci').order_by('nivel'):
+            aprobaciones_por_sol.setdefault(ap.id_formulario_id, {})[ap.nivel] = ap
+
+        unidades = list(
+            UnidadOrganizacional.objects.filter(activo=True)
+            .values('id_unidad', 'nombre').order_by('nombre')
+        )
+
+        roles_activos = list(FuncionarioRol.objects.filter(
+            cod_funcionario=f_user, activo=True
+        ).values_list('id_roles__tipo_rol', flat=True))
+        if 'Funcionario' not in roles_activos:
+            roles_activos.insert(0, 'Funcionario')
+
+        resultado = []
+        for sol in sol_list:
+            f         = sol.cod_funcionario
+            p         = f.ci
+            cargo_act = cargos.get(f.cod_funcionario)
+            aprs      = aprobaciones_por_sol.get(sol.id_formulario, {})
+
+            apr_rechazo = next(
+                (ap for ap in aprs.values() if ap.decision.upper() == 'RECHAZADO'),
+                None,
+            )
+            labels = _NIVEL_LABELS.get(f.tipo_funcionario, {})
+
+            resultado.append({
+                'id':              sol.id_formulario,
+                'codigo':          f"G{sol.id_formulario:03d}",
+                'funcionario':     f"{p.nombre} {p.ap_paterno} {p.ap_materno or ''}".strip(),
+                'cargo':           cargo_act.cargo if cargo_act else '—',
+                'tipo_contrato':   cargo_act.tipo_contrato if cargo_act else '—',
+                'unidad':          f.id_unidad.nombre if f.id_unidad else '—',
+                'fecha_solicitud': sol.fecha_solicitud.strftime('%Y-%m-%d'),
+                'fecha_salida':    sol.fecha_salida.strftime('%Y-%m-%d'),
+                'fecha_retorno':   sol.fecha_retorno.strftime('%Y-%m-%d'),
+                'dias':            float(sol.dias_solicitados),
+                'nivel_rechazo':   apr_rechazo.nivel if apr_rechazo else None,
+                'label_rechazo':   labels.get(apr_rechazo.nivel, f'Nivel {apr_rechazo.nivel}') if apr_rechazo else '—',
+                'aprobador_rechazo': (
+                    f"{apr_rechazo.cod_aprobador.ci.nombre} {apr_rechazo.cod_aprobador.ci.ap_paterno}".strip()
+                    if apr_rechazo else '—'
+                ),
+                'observacion':     apr_rechazo.observacion if apr_rechazo else '—',
+                'fecha_rechazo':   apr_rechazo.fecha_decision.strftime('%Y-%m-%d') if apr_rechazo else None,
+            })
+
+        return Response({
+            'solicitudes': resultado,
+            'filtros':     {'unidades': unidades},
+            'usuario': {
+                'nombre': f"{f_user.ci.nombre} {f_user.ci.ap_paterno}".strip(),
+                'roles':  roles_activos,
+            },
         })

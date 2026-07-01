@@ -98,6 +98,11 @@ async function cargarDatosFormulario() {
 
         datosFormulario = data;
 
+        if (data.sin_jefe_area) {
+            const alerta = document.getElementById('alertaSinJefeArea');
+            if (alerta) alerta.style.display = 'flex';
+        }
+
         // Renderizar roles reales desde BD en el profile-switcher
         renderizarRoles(data.roles || ['Funcionario'], data.nombre_completo);
 
