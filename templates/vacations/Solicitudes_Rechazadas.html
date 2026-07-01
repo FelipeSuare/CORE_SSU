@@ -126,16 +126,33 @@
                             <th>Rechazado por</th>
                             <th>Fecha Rechazo</th>
                             <th>Observación</th>
+                            <th>PDF</th>
                         </tr>
                     </thead>
                     <tbody id="rechazadasTableBody">
                         <tr>
-                            <td colspan="10" style="text-align:center;padding:30px;color:#999">
+                            <td colspan="11" style="text-align:center;padding:30px;color:#999">
                                 Cargando solicitudes...
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal PDF rechazada -->
+    <div class="modal-overlay" id="modalPDF" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+        <div class="form-modal" style="background:#fff;border-radius:12px;padding:32px;max-width:460px;width:90%">
+            <h2 class="modal-title" style="margin-bottom:16px;font-size:1.1em;display:flex;align-items:center;gap:8px">
+                <i class="material-symbols-outlined" style="color:#720035">picture_as_pdf</i> Descargar Formulario de Rechazo
+            </h2>
+            <p id="modalPDFMensaje" style="margin-bottom:24px;color:#444;line-height:1.6;font-size:0.9em"></p>
+            <div style="display:flex;gap:12px;justify-content:flex-end">
+                <button class="btn btn-secondary" id="btnCancelarPDF">Cancelar</button>
+                <button class="btn btn-primary" id="btnConfirmarPDF">
+                    <i class="material-symbols-outlined">download</i> Descargar
+                </button>
             </div>
         </div>
     </div>

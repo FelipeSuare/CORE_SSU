@@ -386,6 +386,223 @@ def anulacion_view(request):
     return render(request, 'vacations/Anulación.html')
 
 
+def _generar_pdf_rechazada(solicitud, apr_rechazo):
+    import os
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm,
+    )
+    W = A4[0] - 4*cm
+
+    f  = solicitud.cod_funcionario
+    p  = f.ci
+    fs = solicitud.fecha_solicitud
+
+    cargo_act = HistorialCargo.objects.filter(cod_funcionario=f, es_actual=True).first()
+
+    HDR_RED = colors.HexColor('#F2949C')
+    ERR_RED = colors.HexColor('#c62828')
+    BLACK   = colors.black
+    WHITE   = colors.white
+    GRAY    = colors.HexColor('#000000')
+
+    def sty(fname, fsize, align=TA_LEFT, color=BLACK, leading=None):
+        return ParagraphStyle(
+            f'{fname}_{fsize}_{align}_{id(color)}',
+            fontName=fname, fontSize=fsize,
+            alignment=align,
+            leading=leading or (fsize + 2),
+            textColor=color,
+        )
+
+    sTitle   = sty('Helvetica-Bold', 12, TA_CENTER)
+    sSection = sty('Helvetica-Bold',  8, TA_CENTER, BLACK)
+    sCod     = sty('Helvetica-Bold',  9)
+    sLabel   = sty('Helvetica-Bold',  8)
+    sVal     = sty('Helvetica',       8)
+    sCenter  = sty('Helvetica',       8, TA_CENTER)
+    sBCenter = sty('Helvetica-Bold',  8, TA_CENTER)
+    sSmall   = sty('Helvetica',       7)
+    sSmallB  = sty('Helvetica-Bold',  7)
+    sErr     = sty('Helvetica-Bold',  9, TA_CENTER, ERR_RED)
+
+    def P(txt, style): return Paragraph(str(txt), style)
+
+    HDR_TS = TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), HDR_RED),
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+    ])
+    DATA_TS = TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+    ])
+
+    def section_hdr(text, bg=HDR_RED):
+        ts = TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), bg),
+            ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ])
+        sty_text = sty('Helvetica-Bold', 8, TA_CENTER, WHITE if bg == ERR_RED else BLACK)
+        t = Table([[P(text, sty_text)]], colWidths=[W])
+        t.setStyle(ts)
+        return t
+
+    logo_path = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), '..', 'static', 'img', 'login', 'LOGOSSU.png')
+    )
+    logo_cell = (
+        Image(logo_path, width=5.5*cm, height=5.5*cm)
+        if os.path.exists(logo_path) else P('', sVal)
+    )
+
+    elements = []
+    elements.append(P('<u><b>FORMULARIO DE SOLICITUD VACACIÓN — RECHAZADA</b></u>', sTitle))
+    elements.append(Spacer(1, 0.2*cm))
+
+    cod_sol          = f"G{solicitud.id_formulario:03d}"
+    nombre_completo  = f"{p.nombre} {p.ap_paterno} {p.ap_materno or ''}".strip()
+
+    wL = W * 0.65; wR = W * 0.35
+    wLa = wL * 0.38; wLb = wL * 0.62
+
+    hdr_datos = Table([
+        [P(f'Cod. Solicitud / {cod_sol}', sCod), '', logo_cell],
+        [P('DATOS DEL EMPLEADO', sSection), '', ''],
+        [P('Carnet:', sLabel),               P(p.ci, sVal),                                          ''],
+        [P('Nombre Completo:', sLabel),       P(nombre_completo, sVal),                              ''],
+        [P('Unidad Organizacional:', sLabel), P(f.id_unidad.nombre if f.id_unidad else '—', sVal),   ''],
+        [P('Cargo:', sLabel),                 P(cargo_act.cargo if cargo_act else '—', sVal),         ''],
+        [P('Fecha Nominal:', sLabel),         P(f.fecha_ingreso.strftime('%d/%m/%Y') if f.fecha_ingreso else '—', sVal), ''],
+    ], colWidths=[wLa, wLb, wR])
+    hdr_datos.setStyle(TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('SPAN',          (0, 0), (1, 0)),
+        ('BACKGROUND',    (0, 0), (1, 0), HDR_RED),
+        ('SPAN',          (0, 1), (1, 1)),
+        ('BACKGROUND',    (0, 1), (1, 1), HDR_RED),
+        ('ALIGN',         (0, 1), (1, 1), 'CENTER'),
+        ('SPAN',          (2, 0), (2, 6)),
+        ('ALIGN',         (2, 0), (2, 6), 'CENTER'),
+        ('VALIGN',        (2, 0), (2, 6), 'MIDDLE'),
+        ('BACKGROUND',    (2, 0), (2, 6), WHITE),
+        ('LINEAFTER',     (1, 0), (1, 6), 0.5, BLACK),
+    ]))
+    elements.append(hdr_datos)
+    elements.append(Spacer(1, 0.15*cm))
+
+    elements.append(section_hdr('PERÍODO DE VACACIONES SOLICITADO'))
+    w4 = W / 4
+    t_periodo = Table([
+        [P('Fecha Solicitud:', sLabel), P(fs.strftime('%d/%m/%Y'), sVal),
+         P('Días Solicitados:', sLabel), P(str(float(solicitud.dias_solicitados)), sVal)],
+        [P('Fecha Inicio:', sLabel),    P(solicitud.fecha_salida.strftime('%d/%m/%Y'), sVal),
+         P('Fecha Final:', sLabel),     P(solicitud.fecha_retorno.strftime('%d/%m/%Y'), sVal)],
+        [P('Descripción:', sLabel),     P(solicitud.motivo_vacacion or '—', sVal), '', ''],
+    ], colWidths=[w4, w4, w4, w4])
+    t_periodo.setStyle(TableStyle([
+        ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('SPAN',          (1, 2), (3, 2)),
+    ]))
+    elements.append(t_periodo)
+    elements.append(Spacer(1, 0.15*cm))
+
+    elements.append(section_hdr('DECISIÓN DE RECHAZO', bg=ERR_RED))
+
+    if apr_rechazo:
+        from vacations.models import JerarquiaAprobacion as _JA
+        nivel_label = f'Nivel {apr_rechazo.nivel}'
+        try:
+            ja = _JA.objects.filter(
+                cod_funcionario=f,
+                nivel_aprobacion=apr_rechazo.nivel,
+            ).order_by('-fecha_inicio').first()
+            if ja:
+                tipo = ja.cod_aprobador.tipo_funcionario
+                nivel_label = {
+                    'JEFE AREA': 'Jefe de Área',
+                    'GERENTE ADMINISTRATIVO': 'Gerente Administrativo',
+                    'GERENTE SALUD': 'Gerente de Salud',
+                    'GERENTE GENERAL': 'Gerente General',
+                }.get(tipo, nivel_label)
+        except Exception:
+            pass
+
+        apr_p = apr_rechazo.cod_aprobador.ci
+        nombre_apr = f"{apr_p.nombre} {apr_p.ap_paterno} {apr_p.ap_materno or ''}".strip()
+        fecha_apr  = apr_rechazo.fecha_decision.strftime('%d/%m/%Y')
+        obs        = apr_rechazo.observacion or '—'
+
+        w2 = W / 2
+        t_rechazo = Table([
+            [P('Nivel de Rechazo:', sLabel),  P(nivel_label, sVal),
+             P('Fecha de Rechazo:', sLabel),  P(fecha_apr, sVal)],
+            [P('Rechazado por:', sLabel),      P(nombre_apr, sVal), '', ''],
+            [P('Motivo del Rechazo:', sLabel), P(obs, sVal),        '', ''],
+        ], colWidths=[w2 * 0.3, w2 * 0.7, w2 * 0.3, w2 * 0.7])
+        t_rechazo.setStyle(TableStyle([
+            ('BOX',           (0, 0), (-1, -1), 0.5, BLACK),
+            ('INNERGRID',     (0, 0), (-1, -1), 0.25, GRAY),
+            ('TOPPADDING',    (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('SPAN',          (1, 1), (3, 1)),
+            ('SPAN',          (1, 2), (3, 2)),
+        ]))
+        elements.append(t_rechazo)
+    else:
+        t_nd = Table([[P('Sin información de rechazo registrada.', sCenter)]], colWidths=[W])
+        t_nd.setStyle(DATA_TS)
+        elements.append(t_nd)
+
+    elements.append(Spacer(1, 0.25*cm))
+    fecha_imp = date.today().strftime('%d/%m/%Y')
+    t_nota = Table([[
+        P('Este documento certifica que la solicitud fue rechazada en el proceso de aprobación.', sSmall),
+        P(f'<b>Fecha:</b> {fecha_imp}', sSmallB),
+    ]], colWidths=[W * 0.72, W * 0.28])
+    t_nota.setStyle(TableStyle([
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('ALIGN',         (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(t_nota)
+
+    doc.build(elements)
+    return buffer.getvalue()
+
+
 @login_required(login_url='login_home')
 def rechazadas_view(request):
     tiene_acceso, _ = _check_acceso_historial(request)

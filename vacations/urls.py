@@ -21,5 +21,6 @@ urlpatterns = [
     path('api/vacaciones/anulacion/',           api_views.SolicitudesAnulacionView.as_view(),  name='vac_anulacion_list'),
     path('api/vacaciones/anulacion/registrar/', api_views.RegistrarAnulacionView.as_view(),    name='vac_anulacion_registrar'),
     # Solicitudes Rechazadas (RRHH)
-    path('api/vacaciones/rechazadas/',          api_views.SolicitudesRechazadasView.as_view(), name='vac_rechazadas'),
+    path('api/vacaciones/rechazadas/',                           api_views.SolicitudesRechazadasView.as_view(),    name='vac_rechazadas'),
+    path('api/vacaciones/rechazadas/pdf/<int:id_formulario>/',   api_views.DescargarPDFRechazadaView.as_view(),   name='vac_pdf_rechazada'),
 ]

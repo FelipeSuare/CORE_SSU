@@ -159,6 +159,34 @@ def _check_acceso_historial(request):
     return bool(roles & _ROLES_RRHH), f
 
 
+def _sin_jefe_area(funcionario):
+    """True si el funcionario es PERSONAL DE AREA y no tiene Jefe de Área activo en su jerarquía."""
+    if funcionario.tipo_funcionario != 'PERSONAL DE AREA':
+        return False
+    return not JerarquiaAprobacion.objects.filter(
+        cod_funcionario=funcionario,
+        activo=True,
+        cod_aprobador__tipo_funcionario='JEFE AREA',
+    ).exists()
+
+
+def _nivel_cols_dinamico(funcionario):
+    """Devuelve nivel_cols adaptado según la jerarquía activa del funcionario."""
+    if _sin_jefe_area(funcionario):
+        return [
+            {'db_nivel': 1, 'header': 'Nivel 1', 'subtitle': 'Sin Jefe de Área — Gte. Adm./Salud'},
+            {'db_nivel': 2, 'header': 'Nivel 2', 'subtitle': 'Gerente General'},
+        ]
+    return _NIVEL_COLS.get(funcionario.tipo_funcionario, _NIVEL_COLS['PERSONAL DE AREA'])
+
+
+def _nivel_labels_dinamico(funcionario):
+    """Devuelve labels de aprobación adaptados según la jerarquía activa del funcionario."""
+    if _sin_jefe_area(funcionario):
+        return {1: 'Sin Jefe de Área — Gte. Adm./Salud', 2: 'Gerente General'}
+    return _NIVEL_LABELS.get(funcionario.tipo_funcionario, {})
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  MÓDULO: SOLICITUD DE VACACIONES
 # ══════════════════════════════════════════════════════════════════════════════
@@ -485,7 +513,7 @@ class MisSolicitudesView(APIView):
                 'ci':     f.ci.ci,
             },
             'tipo_funcionario': f.tipo_funcionario,
-            'nivel_cols': _NIVEL_COLS.get(f.tipo_funcionario, _NIVEL_COLS['PERSONAL DE AREA']),
+            'nivel_cols':       _nivel_cols_dinamico(f),
         })
 
 
@@ -520,7 +548,7 @@ class SeguimientoSolicitudView(APIView):
             ).select_related('cod_aprobador__ci').order_by('nivel_aprobacion')
         )
 
-        labels   = _NIVEL_LABELS.get(f.tipo_funcionario, {})
+        labels   = _nivel_labels_dinamico(f)
         timeline = [{
             'nivel':       'Funcionario',
             'responsable': f"{f.ci.nombre} {f.ci.ap_paterno}".strip(),
@@ -735,6 +763,22 @@ class SolicitudesParaAprobarView(APIView):
                 'puede_actuar':    puede_actuar,
                 'flujo':           flujo,
             })
+
+        # Para aprobadores con rol definido, filtrar: solo las que requieren su acción
+        # o en las que ya emitieron su decisión (historial propio). Los admins ven todo.
+        if tiene_rol_aprobador:
+            sol_ids_con_mi_decision = {
+                sol_id
+                for sol_id, aprs in aprobaciones_por_sol.items()
+                if any(
+                    ap.cod_aprobador_id == aprobador.cod_funcionario
+                    for ap in aprs.values()
+                )
+            }
+            resultado = [
+                r for r in resultado
+                if r['puede_actuar'] or r['id'] in sol_ids_con_mi_decision
+            ]
 
         pendientes_count = sum(1 for r in resultado if r['puede_actuar'])
         aprobadas_count  = sum(1 for r in resultado if r['estado_db'] == 'APROBADA')
@@ -1444,3 +1488,44 @@ class SolicitudesRechazadasView(APIView):
                 'roles':  roles_activos,
             },
         })
+
+
+class DescargarPDFRechazadaView(APIView):
+    permission_classes = [NoCambioPendiente, EsRRHH]
+
+    def get(self, request, id_formulario):
+        tiene_acceso, _ = _check_acceso_historial(request)
+        if not tiene_acceso:
+            return Response({'error': 'Sin acceso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            solicitud = SolicitudVacacion.objects.select_related(
+                'cod_funcionario__ci', 'cod_funcionario__id_unidad'
+            ).get(id_formulario=id_formulario, estado='RECHAZADA')
+        except SolicitudVacacion.DoesNotExist:
+            return Response(
+                {'error': 'Solicitud rechazada no encontrada.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        apr_rechazo = (
+            AprobacionSolicitud.objects
+            .filter(id_formulario=solicitud, decision__iexact='RECHAZADO')
+            .select_related('cod_aprobador__ci')
+            .first()
+        )
+
+        try:
+            from vacations.views import _generar_pdf_rechazada
+            pdf_bytes = _generar_pdf_rechazada(solicitud, apr_rechazo)
+        except Exception:
+            logger.exception('Error generando PDF rechazada #%s', id_formulario)
+            return Response(
+                {'error': 'Error al generar el PDF. Por favor intente nuevamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        cod      = f"G{solicitud.id_formulario:03d}"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Rechazada_{cod}.pdf"'
+        return response
