@@ -48,7 +48,7 @@
 
 /* ── TABLA CARD ── */
 .table-card {
-    overflow-x: hidden;
+    overflow-x: auto;
     margin-bottom: 0;
 }
 

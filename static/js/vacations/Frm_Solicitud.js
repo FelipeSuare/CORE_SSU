@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Carga de datos ────────────────────────────────────────────
 async function cargarDatos(params = {}) {
     const tableBody = document.getElementById('vacationTableBody');
-    tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#999">Cargando...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#999">Cargando...</td></tr>';
 
     const url = new URL(API_HISTORIAL, window.location.origin);
     Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
@@ -87,13 +87,14 @@ function renderTable(solicitudes) {
     tableBody.innerHTML = '';
 
     if (!solicitudes.length) {
-        tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#999">No se encontraron solicitudes aprobadas.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#999">No se encontraron solicitudes aprobadas.</td></tr>';
         return;
     }
 
     solicitudes.forEach(sol => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
+            <td data-label="Cód." style="font-weight:600;color:#720035">${sol.codigo}</td>
             <td data-label="Funcionario"><strong>${esc(sol.funcionario)}</strong></td>
             <td data-label="Cargo">${esc(sol.cargo)}</td>
             <td data-label="Fecha Solicitud">${fmt(sol.fecha_solicitud)}</td>
