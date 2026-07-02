@@ -171,19 +171,27 @@ def _sin_jefe_area(funcionario):
 
 
 def _nivel_cols_dinamico(funcionario):
-    """Devuelve nivel_cols adaptado según la jerarquía activa del funcionario."""
+    """Devuelve nivel_cols con los 3 niveles canónicos.
+    Cuando falta Jefe de Área, el nivel 1 se marca sin_asignacion=True y db_nivel=None
+    (no apunta a ningún campo de la respuesta). Los DB niveles 1 y 2 se reasignan
+    a las posiciones 2 y 3 del display para reflejar la jerarquía real.
+    """
     if _sin_jefe_area(funcionario):
         return [
-            {'db_nivel': 1, 'header': 'Nivel 1', 'subtitle': 'Sin Jefe de Área — Gte. Adm./Salud'},
-            {'db_nivel': 2, 'header': 'Nivel 2', 'subtitle': 'Gerente General'},
+            {'db_nivel': None, 'header': 'Jefe de Área',       'subtitle': '',  'sin_asignacion': True},
+            {'db_nivel': 1,    'header': 'Gerente Adm./Salud', 'subtitle': ''},
+            {'db_nivel': 2,    'header': 'Gerente General',    'subtitle': ''},
         ]
     return _NIVEL_COLS.get(funcionario.tipo_funcionario, _NIVEL_COLS['PERSONAL DE AREA'])
 
 
 def _nivel_labels_dinamico(funcionario):
-    """Devuelve labels de aprobación adaptados según la jerarquía activa del funcionario."""
+    """Devuelve labels para las entradas de AprobacionSolicitud.
+    Cuando sin_jefe_area=True, la BD tiene nivel 1=Gerente Adm/Salud y nivel 2=Gerente General
+    (renumerados por redirigir_jerarquia_por_baja_jefe), por eso los labels se ajustan.
+    """
     if _sin_jefe_area(funcionario):
-        return {1: 'Sin Jefe de Área — Gte. Adm./Salud', 2: 'Gerente General'}
+        return {1: 'Gerente Adm./Salud', 2: 'Gerente General'}
     return _NIVEL_LABELS.get(funcionario.tipo_funcionario, {})
 
 
@@ -549,6 +557,8 @@ class SeguimientoSolicitudView(APIView):
         )
 
         labels   = _nivel_labels_dinamico(f)
+        sin_jefe = _sin_jefe_area(f)
+
         timeline = [{
             'nivel':       'Funcionario',
             'responsable': f"{f.ci.nombre} {f.ci.ap_paterno}".strip(),
@@ -556,6 +566,16 @@ class SeguimientoSolicitudView(APIView):
             'fecha':       solicitud.fecha_solicitud.strftime('%Y-%m-%d'),
             'comentarios': solicitud.motivo_vacacion or 'Solicitud enviada a revisión',
         }]
+
+        # Entrada sintética para Jefe de Área ausente — preserva el registro histórico
+        if sin_jefe and jerarquia:
+            timeline.append({
+                'nivel':       'Jefe de Área',
+                'responsable': 'No asignado',
+                'estado':      'na',
+                'fecha':       None,
+                'comentarios': 'Sin Jefe de Área asignado al momento de esta solicitud.',
+            })
 
         if not jerarquia:
             timeline.append({
@@ -719,7 +739,7 @@ class SolicitudesParaAprobarView(APIView):
             else:
                 puede_actuar = False
 
-            labels = _NIVEL_LABELS.get(f.tipo_funcionario, {})
+            labels = _nivel_labels_dinamico(f)
             flujo  = []
             for j in jerarquias_por_func.get(f.cod_funcionario, []):
                 ap = aprs.get(j.nivel_aprobacion)

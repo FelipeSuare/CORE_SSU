@@ -84,6 +84,13 @@ def _serializar_funcionario(f, datos_sensibles=False):
             cod_funcionario=f, activo=True
         ).select_related('cod_aprobador__ci').order_by('nivel_aprobacion')
     ]
+    sin_jefe_area = (
+        f.tipo_funcionario == 'PERSONAL DE AREA' and
+        not JerarquiaAprobacion.objects.filter(
+            cod_funcionario=f, activo=True,
+            cod_aprobador__tipo_funcionario='JEFE AREA',
+        ).exists()
+    )
     fecha_baja = f.fecha_baja.strftime('%Y-%m-%d') if f.fecha_baja else ''
     data = {
         'cod':              f.cod_funcionario,
@@ -103,6 +110,7 @@ def _serializar_funcionario(f, datos_sensibles=False):
         'tipo_baja':        f.tipo_baja or '',
         'roles':            roles,
         'jerarquia':        jerarquia,
+        'sin_jefe_area':    sin_jefe_area,
     }
     if datos_sensibles:
         data['fecha_nacimiento'] = p.fecha_nacimiento.strftime('%Y-%m-%d') if p.fecha_nacimiento else ''

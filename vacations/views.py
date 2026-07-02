@@ -263,7 +263,30 @@ def _generar_pdf_solicitud(solicitud):
 
     elements.append(section_hdr("VACACIONES AUTORIZADAS POR"))
 
-    firmas = _PDF_FIRMAS.get(tipo, [])
+    # Detectar si al momento de la solicitud no había Jefe de Área asignado.
+    # Después de redirigir_jerarquia_por_baja_jefe, el DB tiene nivel 1=Gerente Adm/Salud,
+    # nivel 2=Gerente General para PERSONAL DE AREA, por eso los niveles de firma se reasignan.
+    sin_jefe_area_pdf = (
+        tipo == 'PERSONAL DE AREA' and
+        not JerarquiaAprobacion.objects.filter(
+            cod_funcionario=f,
+            nivel_aprobacion=1,
+            fecha_inicio__lte=fs,
+            cod_aprobador__tipo_funcionario='JEFE AREA',
+        ).filter(
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fs)
+        ).exists()
+    )
+
+    if sin_jefe_area_pdf and tipo == 'PERSONAL DE AREA':
+        # nivel_db=None → celda vacía; DB nivel 1 y 2 pasan a posiciones 2 y 3
+        firmas = [
+            ('Firma Jefe de Área\n(No asignado)', None),
+            ('Firma de Gerente de\nSalud o Administrativo', 1),
+            ('Firma de Gerente General', 2),
+        ]
+    else:
+        firmas = _PDF_FIRMAS.get(tipo, [])
 
     if tipo == 'GERENTE GENERAL':
         t_nap = Table([[P('<b>NO POSEE NIVEL DE APROBACIÓN</b>', sBCenter)]], colWidths=[W])
@@ -280,13 +303,17 @@ def _generar_pdf_solicitud(solicitud):
         row_info   = []
         row_labels = []
         for label, nivel in firmas:
-            apr = aprobadores.get(nivel)
-            if apr:
-                nombre_apr = f"{apr.ci.nombre} {apr.ci.ap_paterno} {apr.ci.ap_materno or ''}".strip()
-                cod_apr    = apr.cod_funcionario
-                info_txt   = f'<b>{nombre_apr}</b><br/><font size="6">Cód: {cod_apr}</font>'
+            if nivel is None:
+                # Nivel sin asignación histórica — celda vacía con texto indicativo
+                info_txt = '<font color="#aaaaaa"><i>Sin asignación</i></font>'
             else:
-                info_txt = ''
+                apr = aprobadores.get(nivel)
+                if apr:
+                    nombre_apr = f"{apr.ci.nombre} {apr.ci.ap_paterno} {apr.ci.ap_materno or ''}".strip()
+                    cod_apr    = apr.cod_funcionario
+                    info_txt   = f'<b>{nombre_apr}</b><br/><font size="6">Cód: {cod_apr}</font>'
+                else:
+                    info_txt = ''
             row_info.append(P(info_txt, sCenter))
             row_labels.append(P(label, sBCenter))
 

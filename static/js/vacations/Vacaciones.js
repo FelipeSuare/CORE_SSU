@@ -473,8 +473,8 @@ async function cargarSeguimiento() {
                     <ul class="timeline">`;
 
         data.timeline.forEach(paso => {
-            const iconMap = { approved: 'check', rejected: 'close', pending: 'autorenew', sent: 'check', inactive: 'more_horiz' };
-            const statusText = { approved: 'APROBADO', rejected: 'RECHAZADO', pending: 'PENDIENTE', sent: 'ENVIADO', inactive: 'Esperando' };
+            const iconMap    = { approved: 'check', rejected: 'close', pending: 'autorenew', sent: 'check', inactive: 'more_horiz', na: 'person_off' };
+            const statusText = { approved: 'APROBADO', rejected: 'RECHAZADO', pending: 'PENDIENTE', sent: 'ENVIADO', inactive: 'Esperando', na: 'NO ASIGNADO' };
 
             const icon   = iconMap[paso.estado] || 'more_horiz';
             const text   = statusText[paso.estado] || paso.estado.toUpperCase();

@@ -142,6 +142,7 @@
 .timeline-icon.rejected { color: #d32f2f; border-color: #d32f2f; }
 .timeline-icon.sent     { color: var(--color-sent-border); border-color: var(--color-sent-border); }
 .timeline-icon.inactive { color: #999; border-color: #ccc; background: #f5f5f5; }
+.timeline-icon.na       { color: #bbb; border-color: #ddd; background: #fafafa; border-style: dashed; }
 
 .timeline-content {
     background: #f8f9fa;
@@ -176,6 +177,10 @@
 .timeline-item:nth-child(even) .timeline-content.inactive { border-right-color: #ccc; }
 .timeline-content.inactive::before { border-left-color: #f5f5f5; }
 .timeline-item:nth-child(even) .timeline-content.inactive::before { border-left-color: transparent; border-right-color: #f5f5f5; }
+.timeline-content.na { border-left-color: #ddd; background: #fafafa; border-style: dashed; }
+.timeline-item:nth-child(even) .timeline-content.na { border-right-color: #ddd; }
+.timeline-content.na::before { border-left-color: #fafafa; }
+.timeline-item:nth-child(even) .timeline-content.na::before { border-left-color: transparent; border-right-color: #fafafa; }
 
 .timeline-content.sent { border-left-color: var(--color-sent-border); background: var(--color-sent-bg); }
 .timeline-item:nth-child(even) .timeline-content.sent { border-right-color: var(--color-sent-border); }
@@ -193,6 +198,7 @@
 .timeline-status.rejected { background: #ffebee; color: #d32f2f; }
 .timeline-status.sent     { background: var(--color-sent-bg); color: var(--color-sent-border); }
 .timeline-status.waiting  { background: #e0e0e0; color: #757575; }
+.timeline-status.na       { background: #f5f5f5; color: #aaa; border: 1px dashed #ccc; }
 
 .no-request-message { text-align: center; padding: 40px 20px; color: #999; }
 .no-request-message i { font-size: 3em; margin-bottom: 15px; color: #ccc; display: block; }

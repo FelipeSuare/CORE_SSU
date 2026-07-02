@@ -153,7 +153,7 @@ function renderizarTabla() {
 
     tbody.innerHTML = filtradas.map(s => {
         const nivelesHtml = nivelCols.map(c =>
-            `<td>${_celdaNivel(s[`nivel${c.db_nivel}`])}</td>`
+            `<td>${_celdaNivel(s[`nivel${c.db_nivel}`], c)}</td>`
         ).join('');
 
         const motivo = s.motivo.length > 45
@@ -181,7 +181,10 @@ function renderizarTabla() {
     }).join('');
 }
 
-function _celdaNivel(nivel) {
+function _celdaNivel(nivel, col = null) {
+    if (col?.sin_asignacion) {
+        return '<span class="nivel-pendiente" style="color:#aaa;font-style:italic;font-size:0.82em">No asignado</span>';
+    }
     if (!nivel) return '<span class="nivel-pendiente">—</span>';
 
     const icono = nivel.decision === 'APROBADO'
@@ -223,6 +226,9 @@ function generarPlanillaPDF() {
 
     const filas = todasLasSolicitudes.map((s, i) => {
         const nivelesHtml = nivelCols.map(c => {
+            if (c.sin_asignacion) {
+                return `<td style="text-align:center;color:#aaa;font-style:italic;font-size:0.82em">No asignado</td>`;
+            }
             const n = s[`nivel${c.db_nivel}`];
             return n
                 ? `<td style="text-align:center;font-size:0.82em">${n.nombre}<br><small>${formatearFecha(n.fecha)}</small></td>`

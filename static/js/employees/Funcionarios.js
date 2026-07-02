@@ -449,7 +449,13 @@ async function abrirEditar(cod) {
 
     // Pre-rellenar aprobadores actuales (nivel DB → select físico según tipo)
     setTimeout(() => {
-        const map = _NIVEL_A_SEL[f.tipo_funcionario] || {};
+        // Cuando PERSONAL DE AREA no tiene Jefe de Área, el renumerado en BD hace que
+        // nivel 1 = Gerente Adm/Salud y nivel 2 = Gerente General.
+        // Usamos el mismo mapeo que JEFE AREA para evitar poner al Gerente en el slot de Jefe.
+        const map = (f.tipo_funcionario === 'PERSONAL DE AREA' && f.sin_jefe_area)
+            ? { 1: 'aprobadorN2', 2: 'aprobadorN3' }
+            : (_NIVEL_A_SEL[f.tipo_funcionario] || {});
+
         f.jerarquia.forEach(j => {
             const selId = map[j.nivel];
             const s = selId ? document.getElementById(selId) : null;
