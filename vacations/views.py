@@ -78,13 +78,18 @@ def _generar_pdf_solicitud(solicitud):
     ).aggregate(total=_Sum('dias_devolver'))['total'] or Decimal('0')
     dias_efectivos_pdf = solicitud.dias_solicitados - ya_ajustados_pdf
 
+    # Solo aprobadores ACTIVOS (estado='ACTIVO') que cubran la fecha de solicitud.
+    # - cod_aprobador__estado='ACTIVO' descarta personas despedidas/renunciadas aunque
+    #   su registro JerarquiaAprobacion no haya sido cerrado correctamente.
+    # - fecha_fin__gt=fs (strict) evita que el registro del día del despido siga apareciendo.
     aprobadores = {}
     for n in range(1, 4):
         ja = JerarquiaAprobacion.objects.filter(
             cod_funcionario=f, nivel_aprobacion=n,
             fecha_inicio__lte=fs,
+            cod_aprobador__estado='ACTIVO',
         ).filter(
-            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fs)
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gt=fs)
         ).select_related('cod_aprobador__ci').first()
         if ja:
             aprobadores[n] = ja.cod_aprobador
@@ -266,6 +271,8 @@ def _generar_pdf_solicitud(solicitud):
     # Detectar si al momento de la solicitud no había Jefe de Área asignado.
     # Después de redirigir_jerarquia_por_baja_jefe, el DB tiene nivel 1=Gerente Adm/Salud,
     # nivel 2=Gerente General para PERSONAL DE AREA, por eso los niveles de firma se reasignan.
+    # Considera que no hay Jefe de Área si: el aprobador de nivel 1 está INACTIVO (despedido/renunciado)
+    # o si directamente no existe ningún Jefe de Área activo en ese nivel para esa fecha.
     sin_jefe_area_pdf = (
         tipo == 'PERSONAL DE AREA' and
         not JerarquiaAprobacion.objects.filter(
@@ -273,8 +280,9 @@ def _generar_pdf_solicitud(solicitud):
             nivel_aprobacion=1,
             fecha_inicio__lte=fs,
             cod_aprobador__tipo_funcionario='JEFE AREA',
+            cod_aprobador__estado='ACTIVO',
         ).filter(
-            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fs)
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gt=fs)
         ).exists()
     )
 

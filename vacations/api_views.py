@@ -468,35 +468,60 @@ class MisSolicitudesView(APIView):
             ).values('id_formulario').annotate(total=Sum('dias_devolver'))
         }
 
+        # Estado actual de jerarquía (para solicitudes pendientes sin AprobacionSolicitud)
+        sin_jefe_ahora = _sin_jefe_area(f)
+
         def dato_nivel(aprs, nivel):
             ap = aprs.get(nivel)
             if not ap:
                 return None
             return {
-                'nombre':     f"{ap.cod_aprobador.ci.nombre} {ap.cod_aprobador.ci.ap_paterno}".strip(),
-                'fecha':      ap.fecha_decision.strftime('%Y-%m-%d'),
-                'decision':   ap.decision,
+                'nombre':      f"{ap.cod_aprobador.ci.nombre} {ap.cod_aprobador.ci.ap_paterno}".strip(),
+                'fecha':       ap.fecha_decision.strftime('%Y-%m-%d'),
+                'decision':    ap.decision,
                 'observacion': ap.observacion or '',
             }
 
         resultado = []
         for s in solicitudes_qs:
-            aprs        = aprs_por_sol.get(s.id_formulario, {})
-            todas_obs   = [ap.observacion for ap in aprs.values() if ap.observacion]
-            dias_ajust  = ajustes_parciales.get(s.id_formulario, 0.0)
+            aprs       = aprs_por_sol.get(s.id_formulario, {})
+            todas_obs  = [ap.observacion for ap in aprs.values() if ap.observacion]
+            dias_ajust = ajustes_parciales.get(s.id_formulario, 0.0)
+
+            # Determinar si ESTA solicitud fue procesada sin Jefe de Área.
+            # Si hay AprobacionSolicitud en nivel 1 y el aprobador NO es Jefe de Área,
+            # significa que la BD fue renumerada: nivel 1 → Gerente Adm, nivel 2 → Gerente General.
+            # Si nivel 1 aún está pendiente (sin registro), usamos el estado actual de jerarquía.
+            ap1 = aprs.get(1)
+            if ap1 is not None:
+                sol_sin_jefe = ap1.cod_aprobador.tipo_funcionario != 'JEFE AREA'
+            else:
+                sol_sin_jefe = sin_jefe_ahora
+
+            if sol_sin_jefe:
+                # Nivel semántico 1 (Jefe de Área) estaba vacío.
+                # DB nivel 1 = Gerente Adm/Salud → posición 2; DB nivel 2 = Ger. General → posición 3.
+                n1 = None
+                n2 = dato_nivel(aprs, 1)
+                n3 = dato_nivel(aprs, 2)
+            else:
+                n1 = dato_nivel(aprs, 1)
+                n2 = dato_nivel(aprs, 2)
+                n3 = dato_nivel(aprs, 3)
+
             resultado.append({
-                'id':             s.id_formulario,
-                'codigo':         f"G{s.id_formulario:03d}",
+                'id':              s.id_formulario,
+                'codigo':          f"G{s.id_formulario:03d}",
                 'fecha_solicitud': s.fecha_solicitud.strftime('%Y-%m-%d'),
-                'fecha_salida':   s.fecha_salida.strftime('%Y-%m-%d'),
-                'fecha_retorno':  s.fecha_retorno.strftime('%Y-%m-%d'),
-                'dias':           float(s.dias_solicitados) - dias_ajust,
-                'motivo':         s.motivo_vacacion or '',
-                'estado':         _estado_display(s.estado),
-                'nivel1':         dato_nivel(aprs, 1),
-                'nivel2':         dato_nivel(aprs, 2),
-                'nivel3':         dato_nivel(aprs, 3),
-                'observaciones':  todas_obs[-1] if todas_obs else None,
+                'fecha_salida':    s.fecha_salida.strftime('%Y-%m-%d'),
+                'fecha_retorno':   s.fecha_retorno.strftime('%Y-%m-%d'),
+                'dias':            float(s.dias_solicitados) - dias_ajust,
+                'motivo':          s.motivo_vacacion or '',
+                'estado':          _estado_display(s.estado),
+                'nivel1':          n1,
+                'nivel2':          n2,
+                'nivel3':          n3,
+                'observaciones':   todas_obs[-1] if todas_obs else None,
             })
 
         try:
@@ -521,7 +546,7 @@ class MisSolicitudesView(APIView):
                 'ci':     f.ci.ci,
             },
             'tipo_funcionario': f.tipo_funcionario,
-            'nivel_cols':       _nivel_cols_dinamico(f),
+            'nivel_cols':       _NIVEL_COLS.get(f.tipo_funcionario, _NIVEL_COLS['PERSONAL DE AREA']),
         })
 
 
